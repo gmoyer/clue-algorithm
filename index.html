@@ -50,6 +50,12 @@ class Player {
         this.maxHand = num;
         this.cardCount = 0;
     }
+
+    makeHand() {
+        for (var i = 0; i < cardsLength; i++) {
+            this.hand[i] = new Card(i);
+        }
+    }
 }
 
 var playerCount = 0;
@@ -109,6 +115,10 @@ function setupGame() {
         setupDiv.appendChild(input);
         setupDiv.appendChild(document.createElement("br"));
     }
+
+
+    //give player 0 all of the cards
+    players[0].makeHand();
 }
 function adjustCardCount(i, n) {
     players[i].maxHand += n;
@@ -117,24 +127,37 @@ function adjustCardCount(i, n) {
 }
 function selectAsOwn(index) {
     console.log(players[0].cardCount);
-    for (var i = 0; i < players[0].cardCount; i++) {
-        if (players[0].hand[i].index == index) {
-            players[0].hand.splice(i, 1);
-            players[0].cardCount--;
-            const selected = document.getElementById("selectedCard" + index);
-            selected.parentNode.removeChild(selected);
-            return;
+    if (players[0].hand[index].odd == 1) {
+        players[0].hand[index].odd = 0;
+        players[0].cardCount--;
+        const selected = document.getElementById("selectedCard" + index);
+        selected.parentNode.removeChild(selected);
+    } else {
+        players[0].hand[index].odd = 1;
+        players[0].cardCount++;
+        const selected = document.createElement("div");
+        selected.id = "selectedCard" + index;
+        selected.innerHTML = cardNames[index];
+        document.getElementById("setupDiv").appendChild(selected);
+    }
+    //add start button if there is enough cards
+    if (players[0].cardCount == players[0].maxHand) {
+        const startButton = document.createElement("button");
+        startButton.innerHTML = "Start";
+        startButton.id = "startButton";
+        startButton.setAttribute("onclick", "startGame()");
+        document.getElementById("setupDiv").appendChild(startButton);
+    } else {
+        const startButton = document.getElementById("startButton");
+        if (startButton != null) {
+            startButton.parentNode.removeChild(startButton);
         }
     }
-    players[0].hand[players[0].cardCount++] = new Card(index);
-    players[0].hand[players[0].cardCount-1].odd = 1;
-    const selected = document.createElement("div");
-    selected.id = "selectedCard" + index;
-    selected.innerHTML = cardNames[index];
-    document.getElementById("setupDiv").appendChild(selected);
 }
 
 function startGame() {
+    //need to setup the odds of everything
+    //start with the player, odds are either 1 or 0
 
 }
 
