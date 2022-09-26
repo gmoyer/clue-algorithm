@@ -40,7 +40,8 @@ class Card {
             this.type = 2;
             this.count = 9;
         }
-        this.odds = []; //odds of each player having card in the order of players
+        this.baseOdds = []; //odds of each player having card in the order of players
+        this.odds = [];
         this.playerHasCard = false;
     }
 }
@@ -48,9 +49,9 @@ class Card {
 class Player {
     constructor(num) {
         this.name = "";
-        this.hand = []; //functionality for player 0
-        this.maxHand = num;
-        this.cardCount = 0; //functionality for player 0
+        this.hand = []; //functionality for player 0 ONLY during setup
+        this.handSize = num; //how many cards each player has
+        this.cardCount = 0; //functionality ONLY for player 0 when selecting cards during setup
     }
     /*
     makeHand(odd=0) {
@@ -62,10 +63,10 @@ class Player {
 }
 
 class Move {
-    constructor(shown, player, involvedCards) {
-        this.shown = shown; //true or false, if true that means a player showed another a card, if false, that means they passed
-        this.player = player; //index of the player that showed a card
-        this.involvedCards = involvedCards; // array of the indexes of the three cards asked
+    constructor(type, player, involvedCards) {
+        this.type = type; //0: passed, 1: reveal to other, 2: reveal to you
+        this.player = player; //index of the involved player
+        this.involvedCards = involvedCards; // indicies of involved cards
     }
 }
 
@@ -108,7 +109,7 @@ function setupGame() {
         up.innerHTML = "/\\";
         up.setAttribute("onclick", "adjustCardCount(" + i + ", 1)");
         const disp = document.createElement("span");
-        disp.innerHTML = " " + players[i].maxHand + " ";
+        disp.innerHTML = " " + players[i].handSize + " ";
         disp.id = "playerCardCount" + i;        
 
 
@@ -130,8 +131,8 @@ function setupGame() {
     }
 }
 function adjustCardCount(i, n) {
-    players[i].maxHand += n;
-    document.getElementById("playerCardCount" + i).innerHTML = " " + players[i].maxHand + " ";
+    players[i].handSize += n;
+    document.getElementById("playerCardCount" + i).innerHTML = " " + players[i].handSize + " ";
 
 }
 function selectAsOwn(index) {
@@ -156,7 +157,7 @@ function selectAsOwn(index) {
     }
 
     //add start button if there is enough cards
-    if (players[0].cardCount == players[0].maxHand) {
+    if (players[0].cardCount == players[0].handSize) {
         const startButton = document.createElement("button");
         startButton.innerHTML = "Start";
         startButton.id = "startButton";
@@ -173,53 +174,75 @@ function selectAsOwn(index) {
 function startGame() {
     //set base odds
     const cardsLeft = [6, 6, 9]; //the cards left in each type of card
-    for (card in cards) {
+    cards.forEach(card => {
         //if player has cards, hard set odds
         for (var i = 0; i < players[0].cardCount; i++) {
             if (players[0].hand[i].index == card.index) {
                 //make the odds that player 0 has the card 100%
-                card.odds[0] = 1;
+                card.baseOdds[0] = 1;
                 for (var l = 1; l < playerCount; l++) {
                     //make the odds that any other player has the card 0%
-                    card.odds[l] = 0;
+                    card.baseOdds[l] = 0;
                 }
                 card.playerHasCard = true;
                 cardsLeft[card.type]--; //there is one less of that type of card for calculating suspect
             }
         }
-    }
+    });
 
-    for (card in cards) {
+    cards.forEach(card => {
         if (!card.playerHasCard) {
             //player 0 has a 0% chance of having the card
-            card.odds[0] = 0;
+            card.baseOdds[0] = 0;
             for (var l = 1; l < playerCount; l++) {
-                //each other player (playerCount-1) has equal odds of having the card, minus the odds of it being the chosen card
-                card.odds[l] = (1/(playerCount-1)) - (1/cardsLeft[card.type]);
+                //Begin with two possibilities, either it is the chosen card or it exists in a player's hand. Calculate the odds of it NOT being the chosen card AND it existing in a player's hand
+                //NOT being the chosen card: 1-(being the chosen card)
+                //AND: Multiply the probabilities
+                //it existing in a player's hand: Take the slots in a player's hand (possibilities), and divide by the total places it could be (escencially adding the sizes of all the others player's hands)
+                card.baseOdds[l] = (1-(1/cardsLeft[card.type]))*(players[l].handSize/(activeCards-players[0].handSize));
             }
         }
-    }
+    });
 
-    for (var i = 1; i < playerCount; i++) {
-        //give other players hands with odds of having a card (subract known cards)
-        players[i].makeHand(1 / (activeCards-players[0].maxHand));
+    moves.push(new Move(0, 1, [6, 9, 10]));
 
-    }
+    recalculateOdds();
+
+    printOdds();
 }
 
 
 
 function recalculateOdds() {
-    //go through each card in the cards list
-    for (card in cards) {
-        //if player has cards, hard set odds
-        for (var i = 0; i < players[0].cardCount; i++) {
-            if (players[0].hand[i].index == card.index) {
-                card.odds[0] = 1;
+    
+    cards.forEach(card => {
+        //copy over base odds
+        card.odds = [...card.baseOdds];
+    });
 
+    //go through all the moves and update probabilities
+    moves.forEach(move => {
+        if (move.type == 0) { //pass
+            //loop through each passed card
+            for (var i = 0; i < 3; i++) {
+                //set the probability of the card being in that player's hand to 0
+                cards[move.involvedCards[i]].odds[move.player] = 0;
             }
         }
-    }
+    });
+
+}
+
+function printOdds() {
+    const output = document.createElement("div");
+    cards.forEach(card => {
+        output.innerHTML += card.name + ": ";
+        for (var i = 0; i < playerCount; i++) {
+            output.innerHTML += card.odds[i] + ", ";
+        }
+        output.innerHTML += "<br>";
+    });
+    document.getElementById("setupDiv").appendChild(output);
 }
 
 </script>
