@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+//=======================Java====================
+const cardNames = [
+    "Mustard",
+    "Plum",
+    "Green",
+    "Peacock",
+    "Scarlet",
+    "White",
+    "Knife",
+    "Candlestick",
+    "Pistol",
+    "Rope",
+    "Lead Pipe",
+    "Wrench",
+    "Hall",
+    "Lounge",
+    "Dining Room",
+    "Kitchen",
+    "Ball Room",
+    "Conservatory",
+    "Billiard Room",
+    "Library",
+    "Study"
+];
+class Card {
+    constructor(index) {
+        this.index = index; //int
+        this.name = cardNames[index]; //string
+        if (index < 6) {
+            this.type = 0;
+            this.count = 6;
+        } else if (index < 12) {
+            this.type = 1;
+            this.count = 6;
+        } else {
+            this.type = 2;
+            this.count = 9;
+        }
+        this.odd = 0;
+    }
+}
+class Player {
+    constructor(num) {
+        this.name = "";
+        this.hand = [];
+        this.maxHand = num;
+        this.cardCount = 0;
+    }
+}
+
+var playerCount = 0;
+const players = [];
+
+const suspects = [];
+const cardsLength = 21;
+
+for (var i = 0; i < cardsLength; i++) {
+    suspects[i] = new Card(i);
+    suspects[i].odd = 1 / suspects[i].count;
+}
+
+//step 1:
+function adjustPlayers(i) {
+    playerCount += i;
+    document.getElementById("playerCount").innerHTML = playerCount;
+}
+
+//step 2:
+function setupGame() {
+    document.getElementById("openDiv").style.display = "none";
+
+    const setupDiv = document.getElementById("setupDiv");
+    setupDiv.style.display = "block";
+
+    for (var i = 0; i < playerCount; i++) {
+        players[i] = new Player(Math.floor(18 / playerCount));
+
+        const input = document.createElement("input");
+        input.id = "playerInput" + i;
+        setupDiv.appendChild(input);
+        const down = document.createElement("button");
+        down.setAttribute("onclick", "adjustCardCount(" + i + ", -1)");
+        down.innerHTML = "\\/";
+        const up = document.createElement("button");
+        up.innerHTML = "/\\";
+        up.setAttribute("onclick", "adjustCardCount(" + i + ", 1)");
+        const disp = document.createElement("span");
+        disp.innerHTML = " " + players[i].maxHand + " ";
+        disp.id = "playerCardCount" + i;        
+
+
+        setupDiv.appendChild(down);
+        setupDiv.appendChild(disp);
+        setupDiv.appendChild(up);
+
+        setupDiv.appendChild(document.createElement("br"));
+        setupDiv.appendChild(document.createElement("br"));
+    }
+
+    for (var i = 0; i < cardsLength; i++) {
+        const input = document.createElement("button");
+        input.setAttribute("onclick", "selectAsOwn(" + i + ")");
+        input.innerHTML = cardNames[i];
+
+        setupDiv.appendChild(input);
+        setupDiv.appendChild(document.createElement("br"));
+    }
+}
+function adjustCardCount(i, n) {
+    players[i].maxHand += n;
+    document.getElementById("playerCardCount" + i).innerHTML = " " + players[i].maxHand + " ";
+
+}
+function selectAsOwn(index) {
+    console.log(players[0].cardCount);
+    for (var i = 0; i < players[0].cardCount; i++) {
+        if (players[0].hand[i].index == index) {
+            players[0].hand.splice(i, 1);
+            players[0].cardCount--;
+            const selected = document.getElementById("selectedCard" + index);
+            selected.parentNode.removeChild(selected);
+            return;
+        }
+    }
+    players[0].hand[players[0].cardCount++] = new Card(index);
+    players[0].hand[players[0].cardCount-1].odd = 1;
+    const selected = document.createElement("div");
+    selected.id = "selectedCard" + index;
+    selected.innerHTML = cardNames[index];
+    document.getElementById("setupDiv").appendChild(selected);
+}
+
+function startGame() {
+
+}
+
+</script>
+</head>
+<body>
+<!-- ===================HTML====================== -->
+<div id="openDiv">
+    <button onClick="adjustPlayers(1)">/\</button>
+    <div id="playerCount">0</div>
+    <button onClick="adjustPlayers(-1)">\/</button>
+    <button onclick="setupGame()">Start</button>
+</div>
+
+<div id="setupDiv" style="display: none">
+    <div>You:</div>
+</div>
+
+</body>
+</html>
