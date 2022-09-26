@@ -40,33 +40,46 @@ class Card {
             this.type = 2;
             this.count = 9;
         }
-        this.odd = 0;
+        this.odds = []; //odds of each player having card in the order of players
+        this.playerHasCard = false;
     }
 }
+
 class Player {
     constructor(num) {
         this.name = "";
-        this.hand = [];
+        this.hand = []; //functionality for player 0
         this.maxHand = num;
-        this.cardCount = 0;
+        this.cardCount = 0; //functionality for player 0
     }
-
-    makeHand() {
+    /*
+    makeHand(odd=0) {
         for (var i = 0; i < cardsLength; i++) {
-            this.hand[i] = new Card(i);
+            this.hand[i] = new Card(i, odd);
         }
+    }
+    */
+}
+
+class Move {
+    constructor(shown, player, involvedCards) {
+        this.shown = shown; //true or false, if true that means a player showed another a card, if false, that means they passed
+        this.player = player; //index of the player that showed a card
+        this.involvedCards = involvedCards; // array of the indexes of the three cards asked
     }
 }
 
 var playerCount = 0;
-const players = [];
+const players = []; //list of all of the players
 
-const suspects = [];
-const cardsLength = 21;
+const cards = []; //master list of cards with odds of being the murderer
+const cardsLength = 21; //all of the cards in the game
+const activeCards = 18; //all of the cards minus the ones removed
+
+const moves = []; //list of all player's actions
 
 for (var i = 0; i < cardsLength; i++) {
-    suspects[i] = new Card(i);
-    suspects[i].odd = 1 / suspects[i].count;
+    cards[i] = new Card(i);
 }
 
 //step 1:
@@ -115,10 +128,6 @@ function setupGame() {
         setupDiv.appendChild(input);
         setupDiv.appendChild(document.createElement("br"));
     }
-
-
-    //give player 0 all of the cards
-    players[0].makeHand();
 }
 function adjustCardCount(i, n) {
     players[i].maxHand += n;
@@ -127,19 +136,25 @@ function adjustCardCount(i, n) {
 }
 function selectAsOwn(index) {
     console.log(players[0].cardCount);
-    if (players[0].hand[index].odd == 1) {
-        players[0].hand[index].odd = 0;
-        players[0].cardCount--;
-        const selected = document.getElementById("selectedCard" + index);
-        selected.parentNode.removeChild(selected);
-    } else {
-        players[0].hand[index].odd = 1;
-        players[0].cardCount++;
+    var removed = false;
+    for (var i = 0; i < players[0].cardCount; i++) {
+        if (players[0].hand[i].index == index) {
+            players[0].hand.splice(i, 1);
+            players[0].cardCount--;
+            const selected = document.getElementById("selectedCard" + index);
+            selected.parentNode.removeChild(selected);
+            removed = true;
+        }
+    }
+    if (!removed) {
+        players[0].hand[players[0].cardCount++] = new Card(index);
+        players[0].hand[players[0].cardCount-1].odd = 1;
         const selected = document.createElement("div");
         selected.id = "selectedCard" + index;
         selected.innerHTML = cardNames[index];
         document.getElementById("setupDiv").appendChild(selected);
     }
+
     //add start button if there is enough cards
     if (players[0].cardCount == players[0].maxHand) {
         const startButton = document.createElement("button");
@@ -156,9 +171,55 @@ function selectAsOwn(index) {
 }
 
 function startGame() {
-    //need to setup the odds of everything
-    //start with the player, odds are either 1 or 0
+    //set base odds
+    const cardsLeft = [6, 6, 9]; //the cards left in each type of card
+    for (card in cards) {
+        //if player has cards, hard set odds
+        for (var i = 0; i < players[0].cardCount; i++) {
+            if (players[0].hand[i].index == card.index) {
+                //make the odds that player 0 has the card 100%
+                card.odds[0] = 1;
+                for (var l = 1; l < playerCount; l++) {
+                    //make the odds that any other player has the card 0%
+                    card.odds[l] = 0;
+                }
+                card.playerHasCard = true;
+                cardsLeft[card.type]--; //there is one less of that type of card for calculating suspect
+            }
+        }
+    }
 
+    for (card in cards) {
+        if (!card.playerHasCard) {
+            //player 0 has a 0% chance of having the card
+            card.odds[0] = 0;
+            for (var l = 1; l < playerCount; l++) {
+                //each other player (playerCount-1) has equal odds of having the card, minus the odds of it being the chosen card
+                card.odds[l] = (1/(playerCount-1)) - (1/cardsLeft[card.type]);
+            }
+        }
+    }
+
+    for (var i = 1; i < playerCount; i++) {
+        //give other players hands with odds of having a card (subract known cards)
+        players[i].makeHand(1 / (activeCards-players[0].maxHand));
+
+    }
+}
+
+
+
+function recalculateOdds() {
+    //go through each card in the cards list
+    for (card in cards) {
+        //if player has cards, hard set odds
+        for (var i = 0; i < players[0].cardCount; i++) {
+            if (players[0].hand[i].index == card.index) {
+                card.odds[0] = 1;
+
+            }
+        }
+    }
 }
 
 </script>
