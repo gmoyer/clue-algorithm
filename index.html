@@ -46,7 +46,8 @@ class Card {
         //the shared denominator of all of the odds. 
         //This represents the total possibilities, where each position the card could be corresponds to 1 possibility of it being the chosen card and the remaining being in that position
         //this is based on the formula of (1-remainingCards) * (probability of it being in that spot)
-        this.denominator = 0; 
+        this.denominator;
+        this.denominatorMod = []; 
         this.odd = 0; //odds of it being the chosen card
         this.playerHasCard = false;
     }
@@ -186,10 +187,12 @@ function startGame() {
                 //make the odds that player 0 has the card 100%
                 card.odds[0] = 1;
                 card.denominator = 1;
+                card.denominatorMod[0] = 0;
                 card.possiblePlaces = 1;
                 for (var l = 1; l < playerCount; l++) {
                     //make the odds that any other player has the card 0%
                     card.odds[l] = 0;
+                    card.denominatorMod[l] = 0;
                 }
                 card.playerHasCard = true;
                 cardsLeft[card.type]--; //there is one less of that type of card for calculating suspect
@@ -204,7 +207,7 @@ function startGame() {
             card.possiblePlaces = activeCards-players[0].handSize; // Add the sizes of all the player's (not including player) hands
 
             card.denominator = card.possiblePlaces * cardsLeft[card.type]; //the shared denominator of both card.odds and card.odd (guarenteed shared because of multiplication)
-            console.log(card.denominator);
+            card.denominatorMod[0] = 0;
 
             card.odd = (1/cardsLeft[card.type]);//*card.denominator; //1-(being the chosen card)
             for (var l = 1; l < playerCount; l++) {
@@ -213,12 +216,15 @@ function startGame() {
                 //AND: Multiply the probabilities
                 //it existing in a player's hand: Take the slots in a player's hand (possibilities), and divide by the total places it could be
                 card.odds[l] = (1-card.odd)*(players[l].handSize/card.possiblePlaces)*card.denominator;
+                card.denominatorMod[l] = 0;
             }
             card.odd *= card.denominator;
         }
     });
 
     //moves.push(new Move(0, 1, [6, 9, 10]));
+
+    printOdds();
 
     newMove(0, 1, [9]);
 
@@ -231,16 +237,24 @@ function newMove(moveType, player, involvedCards) {
             const card = cards[involvedCards[i]];
             console.log(card.denominator);
             //that player's odds are now 0
+            var amountRemoved = card.odds[player];
             card.odds[player] = 0;
 
             //remove the hand size (removed possible places) of the player that does not have that card
-
             //look at definition of the denominator, where in denominator terms the value of each card slot is the cards left of that type
-
+            card.denominator -= amountRemoved;
             //adjust denominators of other cards accordinly
             cards.forEach(card2 => {
-                if (card2.type == card.type) {
-                    card2.denominator -= players[player].handSize * (cardsLeft[card2.type]-1);
+                if (card2.index != card.index && !card2.playerHasCard) {
+                    for (var l = 0; l < playerCount; l++) {
+                        if (l == player) {
+                            //increase odds since card was removed
+                            card2.denominatorMod[l] -= cardsLeft[card2.type];
+                        } else {
+                            //decrease odds since hard has increased odds to be here
+                            card2.denominatorMod[l] += cardsLeft[card2.type];
+                        }
+                    }
                 }
             });
         };
@@ -252,7 +266,7 @@ function printOdds() {
     cards.forEach(card => {
         output.innerHTML += card.name + ": ";
         for (var i = 0; i < playerCount; i++) {
-            output.innerHTML += (card.odds[i]/card.denominator) + ", ";
+            output.innerHTML += (card.odds[i]/(card.denominator+card.denominatorMod[i])) + ", ";
         }
         output.innerHTML += "<br>";
     });
