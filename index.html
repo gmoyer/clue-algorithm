@@ -41,13 +41,6 @@ class Card {
             this.count = 9;
         }
         this.odds = []; //odds of it existing in i player's hand
-        this.possiblePlaces = 0; //unique spots a card can exist in any player's hand (subtracting where it cannot exist)
-
-        //the shared denominator of all of the odds. 
-        //This represents the total possibilities, where each position the card could be corresponds to 1 possibility of it being the chosen card and the remaining being in that position
-        //this is based on the formula of (1-remainingCards) * (probability of it being in that spot)
-        this.denominator;
-        this.denominatorMod = []; 
         this.odd = 0; //odds of it being the chosen card
         this.playerHasCard = false;
     }
@@ -213,7 +206,6 @@ function startGame() {
                 //AND: Multiply the probabilities
                 //it existing in a player's hand: Take the slots in a player's hand (possibilities), and divide by the total places it could be
                 card.odds[l] = (1-card.odd)*(players[l].handSize/card.possiblePlaces);
-                card.denominatorMod[l] = 0;
             }
         }
     });
@@ -222,7 +214,7 @@ function startGame() {
 
     printOdds();
 
-    newMove(0, 1, [20, 19, 17, 16, 15, 14, 13, 18, 12]);
+    newMove(0, 1, [20, 19, 18, 17, 16, 15, 14, 11]);
 
     printOdds();
 }
@@ -241,20 +233,43 @@ function newMove(moveType, player, involvedCards) {
             for (var l = 0; l < playerCount; l++) {
                 card.odds[l] /= 1-removedOdd;
             }
+            var oldSuspectOdd = card.odd;
             card.odd /= 1-removedOdd;
+            var newSuspectOdd = card.odd;
 
             //adjust vertically, changing the odds of each other card for that specific player
             var vertAdjust = (players[player].oddHandSize - removedOdd) / players[player].oddHandSize;
+            
+            //i thought i should do this but didn't have to
+            //players[player].oddHandSize -= removedOdd;
 
             for (var l = 0; l < cardsLength; l++) {
-                if (l != card.index && cards[l].type != card.type) {
-                    var oldOdd = cards[l].odds[player];
-                    cards[l].odds[player] /= vertAdjust;
-                    var newOdd = cards[l].odds[player];
+                if (l != card.index) {
+                    if (cards[l].type != card.type) { //card that is not in the same group as the chosen card
+                        var oldOdd = cards[l].odds[player];
+                        cards[l].odds[player] /= vertAdjust;
+                        var newOdd = cards[l].odds[player];
 
-                    for (var k = 0; k < playerCount; k++) {
-                        if (k != player) {
-                            cards[l].odds[k] = ((1-newOdd-cards[l].odd)*cards[l].odds[k])/(1-oldOdd-cards[l].odd);
+                        for (var k = 0; k < playerCount; k++) {
+                            if (k != player) {
+                                //the math here just works
+                                if (1-oldOdd-cards[l].odd != 0) {
+                                    cards[l].odds[k] = ((1-newOdd-cards[l].odd)*cards[l].odds[k])/(1-oldOdd-cards[l].odd);
+                                }
+                            }
+                        }
+                    } else { //card that is in the same group as the chosen card
+                        //the chance of it being the chosen card decreases, and the chance of it being other places increases
+                        //so esencially, the same as above, but including the odd of it being the chosen card when readjusting
+                        var oldOdd = cards[l].odd;
+                        cards[l].odd = ((1-newSuspectOdd)*cards[l].odd)/(1-oldSuspectOdd);
+                        var newOdd = cards[l].odd;
+
+                        for (var k = 0; k < playerCount; k++) {
+                            //the math here just works
+                            if (1-oldOdd != 0) {
+                                cards[l].odds[k] = ((1-newOdd)*cards[l].odds[k])/(1-oldOdd);
+                            }
                         }
                     }
                 }
@@ -264,14 +279,24 @@ function newMove(moveType, player, involvedCards) {
 }
 
 function printOdds() {
+    var totals = [];
+    for (var i = 0; i < playerCount; i++) {
+        totals[i] = 0;
+    }
     const output = document.createElement("div");
     cards.forEach(card => {
         output.innerHTML += card.name + ": ";
         for (var i = 0; i < playerCount; i++) {
             output.innerHTML += (card.odds[i]) + ", ";
+            totals[i] += card.odds[i];
         }
+        output.innerHTML += "|" + card.odd;
         output.innerHTML += "<br>";
     });
+    output.innerHTML += "Totals: ";
+    for (var i = 0; i < totals.length; i++) {
+        output.innerHTML += totals[i] + ", ";
+    }
     document.getElementById("setupDiv").appendChild(output);
 }
 
