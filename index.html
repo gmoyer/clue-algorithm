@@ -56,8 +56,20 @@ class Player {
     }
 }
 
+function fact(n) {
+    if (n == 0) {
+        return 1;
+    }
+    var out = 1;
+    for (var i = 1; i <= n; i++) {
+        out *= i;
+    }
+    return out;
+}
+
 var playerCount = 0;
 const players = []; //list of all of the players
+var totalCombinations = 0;
 
 const cards = []; //master list of cards with odds of being the murderer
 const cardsLength = 21; //all of the cards in the game
@@ -158,6 +170,8 @@ function selectAsOwn(index) {
 
 //---------------main functionality----------------------------
 function startGame() {
+    //calculate total combinations
+
     //set player start indicies
     var i = 3;
     for (var l = 0; l < playerCount; l++) {
