@@ -69,11 +69,13 @@ function fact(n) {
 
 var playerCount = 0;
 const players = []; //list of all of the players
-var totalCombinations = 0;
+
 
 const cards = []; //master list of cards with odds of being the murderer
 const cardsLength = 21; //all of the cards in the game
 const activeCards = 18;
+
+var totalCombinations = 6 * 6 * 9 * fact(activeCards);
 
 for (var i = 0; i < cardsLength; i++) {
     cards[i] = new Card(i);
@@ -177,58 +179,37 @@ function startGame() {
     for (var l = 0; l < playerCount; l++) {
         players[l].startIndex = i;
         i += players[l].handSize;
-        console.log(players[l].startIndex);
     }
 
     //set base odds
     cards.forEach(card => {
         //set suspect odd
-        card.odds[card.type] = 1/card.count;
+        card.odds[card.type] = (1/card.count);
         players.forEach(player => {
             for (var i = 0; i < player.handSize; i++) {
                 //the odds of it not being the chosen card and it being in that spot
-                card.odds.push((1-card.odds[card.type])*(1/activeCards));
+                card.odds.push((1-card.odds[card.type])*(1/activeCards)*totalCombinations);
             }
         });
+        card.odds[card.type] *= totalCombinations;
     });
 
-
-    printOdds();
-
+    //removePlayerOdd(0, 0);
+    //printOdds();
+    //return;
     //set the player's hand
     players[0].hand.forEach(card => {
         setPlayerOdd(card.index, 0);
     });
 
     //moves.push(new Move(0, 1, [6, 9, 10]));
-
     printOdds();
     return;
-    //newMove(0, 1, [20, 19, 18, 17, 16, 15, 14, 11]);
-    newMove(1, 1, [18, 17, 16, 15, 14, 13]);
 
     printOdds();
 }
 
-
-//general rule for when new information is found:
-//when a probability is changed from x to y, let another probability (p) dependent on that probability equal ((1-y)*p)/(1-x)
-
-function newMove(moveType, player, involvedCards) {
-    if (moveType == 0) { //pass
-        //handle each of the involved cards
-        for (var i = 0; i < involvedCards.length; i++) {
-            adjustOdd(involvedCards[i], player, false);
-        }
-    }
-    if (moveType == 1) { //showing a card
-        //handle each of the involved cards
-        for (var i = 0; i < involvedCards.length; i++) {
-            adjustOdd(involvedCards[i], player, true);
-        }
-    }
-}
-
+/*
 function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
     if (1-o == 0) {
         console.log("cannot adjust");
@@ -236,6 +217,7 @@ function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
     }
     return ((1-n)*a)/(1-o);
 }
+*/
 
 function setPlayerOdd(index, player) {
     for (var i = 0; i < playerCount; i++) {
@@ -243,35 +225,44 @@ function setPlayerOdd(index, player) {
             removePlayerOdd(index, i);
         }
     }
-    setOdd(index, cards[index].type, 0);
+    removeOdd(index, cards[index].type);
 }
 
 function removePlayerOdd(index, player) {
     for (var i = 0; i < players[player].handSize; i++) {
-        setOdd(index, players[player].startIndex+i, 0);
+        removeOdd(index, players[player].startIndex+i);
     }
-    //setOdd(index, cards[index].type, 0);
 }
 
-function vertProp(index, spot, oodd, nodd) {
-    cards.forEach(card => {
-        if (card.index != index) {
-            var oldOdd = card.odds[spot];
-            card.odds[spot] = oddMath(card.odds[spot], oodd, nodd);
-            //var newOdd = 
-        }
-    });
-}
-
-function setOdd(index, spot, newSetOdd) {
-    console.log("Changing card " + index + " at spot " + spot);
+function removeOdd(index, spot) {
     const card = cards[index];
 
     //Record the before and after
-    var oldMasterOdd = card.odds[spot];
-    card.odds[spot] = newSetOdd;
-    var newMasterOdd = newSetOdd;
+    var oddsRemoved = card.odds[spot];
+    card.odds[spot] = 0;
 
+
+    //remove non-mutually exclusive events
+    cards.forEach(card2 => {
+        if (card.index != card2.index) { //not same card
+            for (var i = 0; i < card2.odds.length; i++) {
+                if (i != spot) { //not same spot
+
+                    //get odds of both by multiplying
+                    var oddOfBoth = ((card.odds[i] * card2.odds[i])/totalCombinations)/totalCombinations;
+                    //console.log("removing " + (oddOfBoth*card2.odds[i]) + " odds");
+                    card2.odds[i] -= oddOfBoth*card2.odds[i];
+                }
+            }
+        }
+    });
+
+    totalCombinations -= oddsRemoved;
+    console.log(totalCombinations);
+}
+
+
+    /*
     //adjust horizontally, changing the odds of where that card can exist (player's hands or chosen)
     for (var l = 0; l < card.odds.length; l++) {
         if (l != spot) {
@@ -284,7 +275,7 @@ function setOdd(index, spot, newSetOdd) {
             vertProp(index, l, oldMasterOdd, newMasterOdd);
         }
     }
-}
+    */
 
 function adjustOdd(index, player, isAdd) {
     const card = cards[index];
@@ -372,15 +363,17 @@ function printOdds() {
     cards.forEach(card => {
         output.innerHTML += card.name + ": ";
         for (var i = 0; i < card.odds.length; i++) {
-            output.innerHTML += (Math.round(card.odds[i]*1000)/1000) + ", ";
+            output.innerHTML += (Math.round((card.odds[i]/totalCombinations)*1000)/1000) + ", ";
             totals[i] += card.odds[i];
         }
         output.innerHTML += "<br>";
     });
+    /*
     output.innerHTML += "Totals: ";
     for (var i = 0; i < totals.length; i++) {
         output.innerHTML += totals[i] + ", ";
     }
+    */
     document.getElementById("setupDiv").appendChild(output);
 }
 
