@@ -198,9 +198,10 @@ function startGame() {
     //printOdds();
     //return;
     //set the player's hand
-    players[0].hand.forEach(card => {
-        setPlayerOdd(card.index, 0);
-    });
+    setPlayerOdd(players[0].hand[0].index, 0);
+    //players[0].hand.forEach(card => {
+    //    setPlayerOdd(card.index, 0);
+    //});
 
     //moves.push(new Move(0, 1, [6, 9, 10]));
     printOdds();
@@ -239,24 +240,23 @@ function removeOdd(index, spot) {
 
     //Record the before and after
     var oddsRemoved = card.odds[spot];
-    card.odds[spot] = 0;
-
+    var oldProb = oddsRemoved/totalCombinations;
 
     //remove non-mutually exclusive events
     cards.forEach(card2 => {
         if (card.index != card2.index) { //not same card
             for (var i = 0; i < card2.odds.length; i++) {
                 if (i != spot) { //not same spot
-
-                    //get odds of both by multiplying
-                    var oddOfBoth = ((card.odds[i] * card2.odds[i])/totalCombinations)/totalCombinations;
-                    //console.log("removing " + (oddOfBoth*card2.odds[i]) + " odds");
+                    var card2Prob = card2.odds[i]/(totalCombinations-card2.odds[spot]);
+                    var oddOfBoth = oldProb * card2Prob;
+                    console.log("removing " + (oddOfBoth*card2.odds[i]) + " odds");
                     card2.odds[i] -= oddOfBoth*card2.odds[i];
                 }
             }
         }
     });
 
+    card.odds[spot] = 0;
     totalCombinations -= oddsRemoved;
     console.log(totalCombinations);
 }
