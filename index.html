@@ -180,7 +180,9 @@ function startGame() {
 
 
     printOdds();
-
+    setPlayerOdd(0, 0);
+    printOdds();
+    return;
     //set the player's hand
     players[0].hand.forEach(card => {
         setPlayerOdd(card.index, 0);
@@ -229,47 +231,46 @@ function setPlayerOdd(index, player) {
             removePlayerOdd(index, i);
         }
     }
-    setOdd(index, cards[index].type, 0);
+    removeOdd(index, cards[index].type);
 }
 
 function removePlayerOdd(index, player) {
     for (var i = 0; i < players[player].handSize; i++) {
-        setOdd(index, players[player].startIndex+i, 0);
+        removeOdd(index, players[player].startIndex+i);
     }
     //setOdd(index, cards[index].type, 0);
 }
 
-function vertProp(index, spot, oodd, nodd) {
-    cards.forEach(card => {
-        if (card.index != index) {
-            var oldOdd = card.odds[spot];
-            card.odds[spot] = oddMath(card.odds[spot], oodd, nodd);
-            //var newOdd = 
-        }
-    });
-}
-
-function setOdd(index, spot, newSetOdd) {
-    console.log("Changing card " + index + " at spot " + spot);
+function removeOdd(index, spot) {
     const card = cards[index];
 
     //Record the before and after
     var oldMasterOdd = card.odds[spot];
-    card.odds[spot] = newSetOdd;
-    var newMasterOdd = newSetOdd;
+    card.odds[spot] = 0;
+    var newMasterOdd = 0;
 
-    //adjust horizontally, changing the odds of where that card can exist (player's hands or chosen)
-    for (var l = 0; l < card.odds.length; l++) {
-        if (l != spot) {
-            var oldOdd = card.odds[l];
-            card.odds[l] = oddMath(card.odds[l], oldMasterOdd, newMasterOdd);
-            var newOdd = card.odds[l];
-
-            vertProp(index, l, oldOdd, newOdd);
-        } else {
-            vertProp(index, l, oldMasterOdd, newMasterOdd);
-        }
+    //adjust card row
+    for (var i = 0; i < card.odds.length; i++) {
+        card.odds[i] = oddMath(card.odds[i], oldMasterOdd, newMasterOdd);
     }
+
+    //adjust every other card
+    cards.forEach(card2 => {
+        for (var i = 0; i < card2.odds.length; i++) {
+            if (card2.index != card.index && i != spot) { //is not in the row or same column as changed odd
+                var oddsOfBoth = oldMasterOdd * oddMath(card2.odds[i], card2.odds[spot], 0);
+                card2.odds[i] *= 1-(oddsOfBoth / (1-card2.odds[i]));
+            }
+        }
+    });
+
+    cards.forEach(card2 => {
+        for (var i = 0; i < card2.odds.length; i++) {
+            if (card2.index != card.index && i == spot) { //is in the same column as changed odd but not same row
+                card2.odds[i] = oddMath(card2.odds[i], oldMasterOdd, newMasterOdd);
+            }
+        }
+    });
 }
 
 function adjustOdd(index, player, isAdd) {
@@ -365,7 +366,7 @@ function printOdds() {
     });
     output.innerHTML += "Totals: ";
     for (var i = 0; i < totals.length; i++) {
-        output.innerHTML += totals[i] + ", ";
+        output.innerHTML += (Math.round(totals[i]*100)/100) + ", ";
     }
     document.getElementById("setupDiv").appendChild(output);
 }
