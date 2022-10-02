@@ -40,59 +40,61 @@ class Card {
             this.type = 2;
             this.count = 9;
         }
-        this.odds = []; //odds of it existing in i player's hand
-        this.odd = 0; //odds of it being the chosen card
-        this.playerHasCard = false;
+
+        //---master list variables---
+        this.odd = 0; //odds of being suspect
+        this.odds = []; //odds of being in player's hand
+        this.player = -1; //-1 if unconfirmed, else whoever's hand it belongs to
     }
 }
 
 class Player {
-    constructor(num) {
+    constructor(num, index) {
         this.name = "";
-        this.hand = []; //functionality for player 0 ONLY during setup
+        this.index = index; //the index of the player
+        this.hand = []; //cards that the player does have
+        this.neghand = []; //cards that the player does not have
         this.handSize = num; //how many cards each player has
+        this.emptySpots = num; //number of unconfirmed spots a player has
+
         this.cardCount = 0; //functionality ONLY for player 0 when selecting cards during setup
-
-        this.oddHandSize = num;
     }
-    /*
-    makeHand(odd=0) {
-        for (var i = 0; i < cardsLength; i++) {
-            this.hand[i] = new Card(i, odd);
+
+    addCard(index, newPush=true) {
+        if (newPush) {
+            this.hand.push(new Card(index));
         }
+        this.emptySpots--;
+        cardsLeft[cards[index].type]--;
+        cards[index].player = this.index;
+        activeCards--;
     }
-    */
-}
 
-class Move {
-    constructor(type, player, involvedCards) {
-        this.type = type; //0: passed, 1: reveal to other, 2: reveal to you
-        this.player = player; //index of the involved player
-        this.involvedCards = involvedCards; // indicies of involved cards
+    removeCard(index) {
+        this.neghand.push(new Card(index));
     }
 }
 
 var playerCount = 0;
 const players = []; //list of all of the players
 
-const cards = []; //master list of cards with odds of being the murderer
-const cardsLength = 21; //all of the cards in the game
-const activeCards = 18; //all of the cards minus the ones removed
+const cards = []; //master list of cards with odds of being the murderer or in player's hand
+const cardCount = 21; //all of the cards in the game
+var activeCards = 18; //all of the cards minus the ones removed
 const cardsLeft = [6, 6, 9]; //the cards left in each type of card
+const cardCombos = [24, 24, 27] //hand slots plus the numbers of ways it can be the active card
 
-const moves = []; //list of all player's actions
-
-for (var i = 0; i < cardsLength; i++) {
+for (var i = 0; i < cardCount; i++) {
     cards[i] = new Card(i);
 }
 
-//step 1:
+//---step 1---:
 function adjustPlayers(i) {
     playerCount += i;
     document.getElementById("playerCount").innerHTML = playerCount;
 }
 
-//step 2:
+//---step 2---:
 function setupGame() {
     document.getElementById("openDiv").style.display = "none";
 
@@ -100,7 +102,7 @@ function setupGame() {
     setupDiv.style.display = "block";
 
     for (var i = 0; i < playerCount; i++) {
-        players[i] = new Player(Math.floor(18 / playerCount));
+        players[i] = new Player(Math.floor(18 / playerCount), i);
 
         const input = document.createElement("input");
         input.id = "playerInput" + i;
@@ -124,7 +126,7 @@ function setupGame() {
         setupDiv.appendChild(document.createElement("br"));
     }
 
-    for (var i = 0; i < cardsLength; i++) {
+    for (var i = 0; i < cardCount; i++) {
         const input = document.createElement("button");
         input.setAttribute("onclick", "selectAsOwn(" + i + ")");
         input.innerHTML = cardNames[i];
@@ -135,7 +137,7 @@ function setupGame() {
 }
 function adjustCardCount(i, n) {
     players[i].handSize += n;
-    players[i].oddHandSize += n;
+    players[i].emptySpots += n;
     document.getElementById("playerCardCount" + i).innerHTML = " " + players[i].handSize + " ";
 
 }
@@ -174,148 +176,67 @@ function selectAsOwn(index) {
     }
 }
 
+
+//---step 3---
 function startGame() {
-    //set base odds
-    cards.forEach(card => {
-        //if player has cards, hard set odds
-        for (var i = 0; i < players[0].cardCount; i++) {
-            if (players[0].hand[i].index == card.index) {
-                //make the odds that player 0 has the card 100%
-                card.odds[0] = 1;
-                card.possiblePlaces = 1;
-                for (var l = 1; l < playerCount; l++) {
-                    //make the odds that any other player has the card 0%
-                    card.odds[l] = 0;
-                }
-                card.playerHasCard = true;
-                cardsLeft[card.type]--; //there is one less of that type of card for calculating suspect
-            }
-        }
-    });
+    //update status of player's chosen cards
+    players[0].hand.forEach(card => {
+        players[0].addCard(card.index, false);
+    }); 
 
-    cards.forEach(card => {
-        if (!card.playerHasCard) {
-            //player 0 has a 0% chance of having the card
-            card.odds[0] = 0;
-            card.possiblePlaces = activeCards-players[0].handSize; // Add the sizes of all the player's (not including player) hands
+    players[1].removeCard(5);
 
-            card.odd = (1/cardsLeft[card.type]); //1-(being the chosen card)
-            for (var l = 1; l < playerCount; l++) {
-                //Begin with two possibilities, either it is the chosen card or it exists in a player's hand. Calculate the odds of it NOT being the chosen card AND it existing in a player's hand
-                //NOT being the chosen card: 1-suspectOdd
-                //AND: Multiply the probabilities
-                //it existing in a player's hand: Take the slots in a player's hand (possibilities), and divide by the total places it could be
-                card.odds[l] = (1-card.odd)*(players[l].handSize/card.possiblePlaces);
-            }
-        }
-    });
-
-    //moves.push(new Move(0, 1, [6, 9, 10]));
-
-    printOdds();
-
-    //newMove(0, 1, [20, 19, 18, 17, 16, 15, 14, 11]);
-    newMove(1, 1, [18, 17, 16, 15, 14, 13]);
+    recalculateOdds();
 
     printOdds();
 }
 
 
-//general rule for when new information is found:
-//when a probability is changed from x to y, let another probability (p) dependent on that probability equal ((1-y)*p)/(1-x)
 
-function newMove(moveType, player, involvedCards) {
-    if (moveType == 0) { //pass
-        //handle each of the involved cards
-        for (var i = 0; i < involvedCards.length; i++) {
-            adjustOdd(involvedCards[i], player, false);
-        }
-    }
-    if (moveType == 1) { //showing a card
-        //handle each of the involved cards
-        for (var i = 0; i < involvedCards.length; i++) {
-            adjustOdd(involvedCards[i], player, true);
-        }
-    }
-}
+function recalculateOdds() {
+    //use all the information given to calculate the odds in the master card table
+    cards.forEach(card => {
+        if (card.player == -1) { //unconfirmed card
+            //the chance of being the suspect
+            card.odd = 1 / cardsLeft[card.type];
+            for (var i = 0; i < playerCount; i++) {
+                //calculate the positions that the card could be
+                //subtract the number of cards a player does not have from the slots that it could be
+                var slots = activeCards-players[i].neghand.length;
 
 
-function adjustOdd(index, player, isAdd) {
-    const card = cards[index];
-    var oldMasterOdd, newMasterOdd, oldSuspectOdd, newSuspectOdd;
-
-    if (isAdd) {
-
-        //set the odds of each other one to zero
-        for (var i = 0; i < playerCount; i++) {
-            if (i != player) {
-                adjustOdd(index, i, false);
-            }
-        }
-
-        //remove the odds of it being the suspect
-        oldSuspectOdd = card.odd;
-        card.odd = 0;
-        newSuspectOdd = 0;
-
-        //set the odds that the player has it to 1
-        oldMasterOdd = card.odds[player];
-        card.odds[player] = 1;
-        newMasterOdd = 1;
-    } else {
-        //take the card out of that player's hand, and save the removed odd
-        oldMasterOdd = card.odds[player];
-        card.odds[player] = 0;
-        newMasterOdd = 0;
-        //adjust horizontally, changing the odds of where that card can exist (player's hands or chosen)
-        for (var l = 0; l < playerCount; l++) {
-            card.odds[l] /= 1-oldMasterOdd;
-        }
-        oldSuspectOdd = card.odd;
-        card.odd /= 1-oldMasterOdd;
-        newSuspectOdd = card.odd;
-    }
-
-    
-
-    //adjust vertically, changing the odds of each other card for that specific player
-    //var vertAdjust = (players[player].oddHandSize - removedOdd) / players[player].oddHandSize;
-
-    //i thought i should do this but didn't have to
-    //players[player].oddHandSize -= removedOdd;
-
-    for (var l = 0; l < cardsLength; l++) {
-        if (l != card.index) {
-            //if (cards[l].type != card.type) { //card that is not in the same group as the chosen card
-                var oldOdd = cards[l].odds[player];
-                cards[l].odds[player] = ((players[player].handSize-newMasterOdd)*cards[l].odds[player])/(players[player].handSize-oldMasterOdd);
-                var newOdd = cards[l].odds[player];
-
-                for (var k = 0; k < playerCount; k++) {
-                    if (k != player) {
-                        //the math here just works
-                        if (1-oldOdd-cards[l].odd != 0) {
-                            cards[l].odds[k] = ((1-newOdd-cards[l].odd)*cards[l].odds[k])/(1-oldOdd-cards[l].odd);
-                        }
+                //if the card is in the hand of cards the player does not have, set odd to zero
+                var foundneghand = false;
+                for (var l = 0; l < players[i].neghand.length; l++) {
+                    if (players[i].neghand[l].index == card.index) {
+                        foundneghand = true;
                     }
                 }
-            if (cards[l].type == card.type) {//} else { //card that is in the same group as the chosen card
-                //the chance of it being the chosen card decreases, and the chance of it being other places increases
-                //so esencially, the same as above, but including the odd of it being the chosen card when readjusting
-                var oldOdd = cards[l].odd;
-                cards[l].odd = ((1-newSuspectOdd)*cards[l].odd)/(1-oldSuspectOdd);
-                var newOdd = cards[l].odd;
-
-                for (var k = 0; k < playerCount; k++) {
-                    //the math here just works
-                    if (1-oldOdd != 0) {
-                        cards[l].odds[k] = ((1-newOdd)*cards[l].odds[k])/(1-oldOdd);
-                    }
+                if (foundneghand) {
+                    card.odds[i] = 0;
+                } else {
+                    //the odds are the spots in a player's hand divided by the total slots
+                    //AND (times)
+                    //the odds of it not being the suspect card
+                    console.log("(" + players[i].emptySpots + "/" + slots + ")*(1-" + card.odd+")");
+                    card.odds[i] = (players[i].emptySpots / slots)*(1-card.odd);
+                    console.log("Card " + card.index + "Player " + i + ", " + card.odds[i]); 
+                }
+            }
+        } else { //confirmed card
+            for (var i = 0; i < playerCount; i++) {
+                if (i == card.player) {
+                    card.odds[i] = 1;
+                } else {
+                    card.odds[i] = 0;
                 }
             }
         }
-    }
+    });
 }
+
+
+
 
 function printOdds() {
     var totals = [];
