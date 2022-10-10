@@ -62,6 +62,43 @@ class Move {
     }
 }
 
+class Node {
+    constructor(data) {
+        this.data = data;
+        this.next = null;
+    }
+}
+
+/*
+
+Data is stored in a string
+
+The first three spaces in the string are reserved for the target person, weapon, and room
+Following that is player 1, player 2, etc.
+
+*/
+
+class LinkedList {
+    constructor(head = null) {
+        this.head = head;
+        this.tail = head;
+    }
+
+    newNode(data) {
+        if (this.head) {
+            this.tail.next = new Node(data);
+            this.tail = this.tail.next;
+        } else {
+            this.head = new Node(data);
+            this.tail = this.head;
+        }
+    }
+
+    updateNodes(toRemove) {
+
+    }
+}
+
 function fact(n) {
     if (n == 0) {
         return 1;
@@ -79,6 +116,7 @@ const players = []; //list of all of the players
 const cards = []; //master list of cards with odds of being the murderer
 const cardsLength = 21; //all of the cards in the game
 const activeCards = 18; //all of the cards minus the ones removed
+const convert = 64; // the ascii conversion
 const cardsLeft = [6, 6, 9]; //the cards left in each type of card
 
 const moves = []; //list of all player's actions
@@ -180,10 +218,16 @@ function selectAsOwn(index) {
 function startGame() {
     //find total combinations
 
-    totalCombinations = 6 * 6 * 9; //combinations of outcomes
+    //handle player 0
+    for (var i = 0; i < players[0].handSize; i++) {
+        cardsLeft[players[0].hand[i].type]--;
+    }
 
-    var usedCards = 0;
-    for (var i = 0; i < playerCount; i++) {
+
+    totalCombinations = cardsLeft[0] * cardsLeft[1] * cardsLeft[2]; //combinations of outcomes
+
+    var usedCards = players[0].handSize;
+    for (var i = 1; i < playerCount; i++) {
         totalCombinations *= combination(activeCards-usedCards, players[i].handSize); //fact(activeCards-usedCards)/(fact(activeCards-usedCards-players[i].handSize) * fact(players[i].handSize));
         usedCards += players[i].handSize;
     }
