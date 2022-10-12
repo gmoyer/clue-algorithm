@@ -42,6 +42,7 @@ class Card {
         }
         this.odds = []; //scenarios where card exists in i player's hand
         this.odd = 0; //scenarios where card is a chosen card
+        this.inHand = false; //in the player's hand
     }
 }
 
@@ -85,6 +86,7 @@ class LinkedList {
     }
 
     newNode(data) {
+        //console.log("new node");
         if (this.head) {
             this.tail.next = new Node(data);
             this.tail = this.tail.next;
@@ -112,6 +114,8 @@ function fact(n) {
 
 var playerCount = 0;
 const players = []; //list of all of the players
+
+let hands = new LinkedList();
 
 const cards = []; //master list of cards with odds of being the murderer
 const cardsLength = 21; //all of the cards in the game
@@ -190,10 +194,12 @@ function selectAsOwn(index) {
             const selected = document.getElementById("selectedCard" + index);
             selected.parentNode.removeChild(selected);
             removed = true;
+            cards[index].inHand = false;
         }
     }
     if (!removed) {
         players[0].hand[players[0].cardCount++] = new Card(index);
+        cards[index].inHand = true;
         const selected = document.createElement("div");
         selected.id = "selectedCard" + index;
         selected.innerHTML = cardNames[index];
@@ -215,10 +221,39 @@ function selectAsOwn(index) {
     }
 }
 
+/*
+function genPossibilities(str, i, arr2) {
+    arr = [...arr2];
+    if (i == cardsLength) {
+        hands.newNode(str);
+        return;
+    }
+
+    if (cards[i].inHand) {
+        arr[0]--;
+        genPossibilities(str+"@", i+1, arr);
+    } else {
+        if (str.indexOf(String.fromCharCode(cards[i].type+61)) == -1) {
+            genPossibilities(str+String.fromCharCode(cards[i].type+61), i+1, arr);
+        }
+        for (var l = 1; l < playerCount; l++) {
+            if (l != 1) {
+                arr[l-1]++;
+            }
+            arr[l]--;
+            if (arr[l] >= 0) {
+                genPossibilities(str+String.fromCharCode(l+64), i+1, arr);
+            }
+        }
+    }
+}
+*/
+
 function startGame() {
     //find total combinations
 
     //handle player 0
+    /*
     for (var i = 0; i < players[0].handSize; i++) {
         cardsLeft[players[0].hand[i].type]--;
     }
@@ -232,8 +267,16 @@ function startGame() {
         usedCards += players[i].handSize;
     }
     console.log(totalCombinations);
-
-
+    */
+    arr = [];
+    for (var i = 0; i < playerCount; i++) {
+        arr[i] = players[i].handSize;
+    }
+    var x = 0;
+    for (var i = 0; i < Math.pow(playerCount, 21); i++) {
+        x+=5;
+    }
+    /*
     //create all the base possibilities for each card
     for (var i = 0; i < cardsLength; i++) {
 
@@ -246,7 +289,10 @@ function startGame() {
         }
 
     }
-
+    */
+   console.log("success!");
+    return;
+   updateOdds();
     printOdds();
     return;
     //remove all possibilities where player 0 does not have the card
@@ -326,6 +372,18 @@ function newMove(moveType, player, involvedCards) {
                 }
             });
         };
+    }
+}
+
+function updateOdds() {
+    totalCombinations = 0;
+    let crawler = hands.head;
+    while (crawler) {
+        for (var i = 0; i < cardsLength; i++) {
+            cards[i].odds[crawler.data.charCodeAt(i)-64]++;
+        }
+        totalCombinations++;
+        crawler = crawler.next;
     }
 }
 
