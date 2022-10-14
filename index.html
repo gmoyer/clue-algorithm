@@ -34,18 +34,22 @@ class Card {
         if (index < 6) {
             this.type = 0; //person
             this.count = 6;
+            this.indMod = 0; //index mod, number to subtract when accessing index of array with specific type
         } else if (index < 12) {
             this.type = 1; //weapon
             this.count = 6;
+            this.indMod = 6;
         } else {
             this.type = 2; //room
             this.count = 9;
+            this.indMod = 12;
         }
         this.confirmSpot = false;
         this.spot = 0; //i player's hand, or -1 for suspect
         this.possible = []; //true or false, whether it could exist in a spot
-        this.odds = []; //odds of it being somewhere. 0 for suspect, and +1 for each player
-        //this.odd = 0; //odds of it being the suspect card
+        this.combos = []; //combinations of it being somewhere. 0 for suspect, and +1 for each player
+        this.odds = []; //oods of it being somewhere. See above
+        this.theroCombo = 0; //theoretical combinations of being the suspect card when a value is changed
     }
 }
 
@@ -196,6 +200,10 @@ function startGame() {
     cards[4].possible[1] = false;
 
     setOdds();
+
+    console.log(theroInfo(4, 2));
+    console.log(theroInfo(5, 2));
+
     printOdds();
     return;
 
@@ -214,20 +222,59 @@ function setOdds() {
 
     cards.forEach(card => {
         for (var i = 0; i < playerCount+1; i++) {
-            card.odds[i] = 0;
+            card.combos[i] = 0;
         }
     });
 
     setOddsHelper(0, handSizes);
+
+    //set the odds
+    cards.forEach(card => {
+        for (var i = 0; i < card.combos.length; i++) {
+            card.odds[i] = card.combos[i]/totalCombinations;
+        }
+    })
+}
+
+
+//use equation from the past!!
+function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
+    if (1-o == 0) {
+        console.log("cannot adjust");
+        return a;
+    }
+    return ((1-n)*a)/(1-o);
+}
+function theroInfo(index, player) {
+    //info gained from player index "player" having card of index "index"
+
+    var changeOdds = 0;
+
+    var removedOdd = cards[index].odds[0];
+
+    cards.forEach(card => {
+        if (card.type == cards[index].type) {
+            if (card.index == index) {
+                changeOdds += Math.pow(removedOdd, 2);
+            } else {
+                var newOdd = oddMath(card.odds[0], removedOdd, 0);
+                changeOdds += Math.pow(newOdd-card.odds[0], 2);
+            }
+        }
+    });
+
+    return changeOdds;
 }
 
 function setOddsHelper(index, hs) {
     //end case, went through all the cards
     if (index == cardsLength) {
         totalCombinations++;
+        /*
         cards.forEach(card => {
             card.odds[card.spot]++;
         });
+        */
         if (totalCombinations % 10000000 == 0) {
             console.log(totalCombinations);
         }
@@ -237,16 +284,20 @@ function setOddsHelper(index, hs) {
 
     if (hs[cards[index].type] == 1) { //can be suspect card
         hs[cards[index].type] = 0;
-        cards[index].spot = 0;
+        //cards[index].spot = 0;
+        var tc = totalCombinations;
         setOddsHelper(index+1, hs);
+        cards[index].combos[0] += totalCombinations-tc;
         hs[cards[index].type] = 1;
     }
 
     for (var i = 0; i < playerCount; i++) {
         if (cards[index].possible[i] && hs[i+3] > 0) {
             hs[i+3] -= 1;
-            cards[index].spot = i+1;
+            //cards[index].spot = i+1;
+            var tc = totalCombinations;
             setOddsHelper(index+1, hs);
+            cards[index].combos[i+1] += totalCombinations-tc;
             hs[i+3] += 1;
         }
     }
@@ -262,7 +313,7 @@ function printOdds() {
     cards.forEach(card => {
         output.innerHTML += card.name + ": ";
         for (var i = 0; i < card.odds.length; i++) {
-            output.innerHTML += (Math.round(((card.odds[i])/totalCombinations)*1000)/1000) + ", ";
+            output.innerHTML += (Math.round(card.odds[i]*1000)/1000) + ", ";
             //totals[i] += card.odds[i];
         }
         output.innerHTML += "<br>";
