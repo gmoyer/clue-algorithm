@@ -197,12 +197,22 @@ function startGame() {
         }
     });
 
-    cards[4].possible[1] = false;
+
+    //need to fix possible indicies to match odds and combos indicies
+    cards[4].possible[2] = false;
+
+    cards[11].possible[1] = false;
+    cards[11].possible[2] = false;
 
     setOdds();
 
-    console.log(theroInfo(4, 2));
-    console.log(theroInfo(5, 2));
+    var test = highestExpectedValue(12);
+
+    console.log(expectedValue([4, 6, 12]));
+    console.log(expectedValue([5, 6, 12]));
+
+    console.log(test[0]);
+    console.log(test[1]);
 
     printOdds();
     return;
@@ -210,6 +220,8 @@ function startGame() {
     printOdds();
 }
 
+
+//---------------set the odds when it is the player's turn to accurately reflect changes----------
 
 function setOdds() {
     const handSizes = [1, 1, 1];
@@ -236,36 +248,6 @@ function setOdds() {
     })
 }
 
-
-//use equation from the past!!
-function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
-    if (1-o == 0) {
-        console.log("cannot adjust");
-        return a;
-    }
-    return ((1-n)*a)/(1-o);
-}
-function theroInfo(index, player) {
-    //info gained from player index "player" having card of index "index"
-
-    var changeOdds = 0;
-
-    var removedOdd = cards[index].odds[0];
-
-    cards.forEach(card => {
-        if (card.type == cards[index].type) {
-            if (card.index == index) {
-                changeOdds += Math.pow(removedOdd, 2);
-            } else {
-                var newOdd = oddMath(card.odds[0], removedOdd, 0);
-                changeOdds += Math.pow(newOdd-card.odds[0], 2);
-            }
-        }
-    });
-
-    return changeOdds;
-}
-
 function setOddsHelper(index, hs) {
     //end case, went through all the cards
     if (index == cardsLength) {
@@ -275,9 +257,6 @@ function setOddsHelper(index, hs) {
             card.odds[card.spot]++;
         });
         */
-        if (totalCombinations % 10000000 == 0) {
-            console.log(totalCombinations);
-        }
         return;
     }
 
@@ -303,7 +282,121 @@ function setOddsHelper(index, hs) {
     }
 }
 
+//---------------------pulling info gained from player revealing card------------------------
+//use equation from the past!!
+function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
+    if (1-o == 0) {
+        //console.log("cannot adjust");
+        return a;
+    }
+    return ((1-n)*a)/(1-o);
+}
+function theroInfo(index, player) {
+    //info gained from player index "player" having card of index "index"
 
+
+    if (player != -1) { //player have card
+
+        var changeOdds = 0;
+
+        var removedOdd = cards[index].odds[0];
+
+        cards.forEach(card => {
+            if (card.type == cards[index].type) {
+                if (card.index == index) {
+                    changeOdds += Math.pow(removedOdd, 2);
+                } else {
+                    var newOdd = oddMath(card.odds[0], removedOdd, 0);
+                    changeOdds += Math.pow(newOdd-card.odds[0], 2);
+                }
+            }
+        });
+
+        return changeOdds;
+
+    } else {  //suspect card
+
+        var changeOdds = 0;
+
+        //amount added to get the odd to 1
+        var addedOdd = 1-cards[index].odds[0];
+
+        cards.forEach(card => {
+            if (card.type == cards[index].type) {
+                if (card.index == index) {
+                    changeOdds += Math.pow(addedOdd, 2);
+                } else {
+                    //since odd is changed to 0, the change is itself (x-x=0)
+                    changeOdds += Math.pow(card.odds[0], 2);
+                }
+            }
+        });
+
+        return changeOdds;
+    }
+}
+//---------------finding expected value--------------
+
+function expectedValue(inds) {
+    //the indexes of the guessed things 0=person, 1=weapon, 2=room
+
+    var ev = 0; //expected value
+    var co = 1; //current odds
+    //loop through each player
+    for (var i = 1; i < playerCount; i++) {
+
+        //find the odds that the player actually has any of the three using a flip flop (find odds player doesn't have card and then inverse)
+        var odds = 1;
+        var total = 0;
+        for (var l = 0; l < inds.length; l++) {
+            var odd = cards[inds[l]].odds[i+1];
+            odds *= 1-odd;
+            total += odd;
+        }
+        odds = 1-odds;
+
+        //multiply it by the odds left over from other players
+        odds *= co;
+        //remove the odds from the leftover odds
+        co -= odds;
+
+        //run through again and add to expected value
+        for (var l = 0; l < inds.length; l++) {
+            var odd = cards[inds[l]].odds[i+1];
+            //expected value is the info gained times the probability of gaining that info
+            //probability is the share of the odds (probability that the player will chose to show that card) times the probability that the player has a card to show
+            ev += theroInfo(inds[l], i) * (odd/total) * odds;
+        }
+    }
+
+    if (co > 0) { //chance none of the players show you anything
+        for (var i = 0; i < inds.length; i++) {
+            if (!cards[inds[i]].possible[0]) {
+                ev += theroInfo(inds[i], -1)*co;
+            }
+        }
+    }
+    return ev;
+}
+
+function highestExpectedValue(room) {
+    var hev = 0;
+    var hevc = [];
+    //loop through each person
+    for (var i = 0; i < 6; i++) {
+        //and weapon
+        for (var l = 6; l < 12; l++) {
+            var ev = expectedValue([i, l, room]);
+            if (ev > hev) {
+                hev = ev;
+                hevc = [i, l];
+            }
+        }
+    }
+    return hevc;
+}
+
+//-------------------------printing------------------
 function printOdds() {
     var totals = [];
     for (var i = 0; i < cardsLength; i++) {
