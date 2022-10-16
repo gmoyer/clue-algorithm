@@ -45,9 +45,9 @@ class Card {
             this.indMod = 12;
         }
         this.confirmSpot = false;
-        this.spot = 0; //i player's hand, or -1 for suspect
-        this.possible = []; //true or false, whether it could exist in a spot
-        this.combos = []; //combinations of it being somewhere. 0 for suspect, and +1 for each player
+        this.spot = 0; //i+1 player's hand, or 0 for suspect
+        this.possible = []; //true or false, whether it could exist in a spot. 0 for suspect, and +1 for each player
+        this.combos = []; //combinations of it being somewhere. See above for placement
         this.odds = []; //oods of it being somewhere. See above
         this.theroCombo = 0; //theoretical combinations of being the suspect card when a value is changed
     }
@@ -59,6 +59,7 @@ class Player {
         this.hand = []; //functionality for player 0 ONLY during setup
         this.handSize = num; //how many cards each player has
         this.cardCount = 0; //functionality ONLY for player 0 when selecting cards during setup
+        this.confirmedCards = 0; //number of cards we know
     }
 }
 
@@ -75,6 +76,10 @@ function fact(n) {
 
 var playerCount = 0;
 const players = []; //list of all of the players
+var turn = 0 //i player's turn
+var turnSelection = [];
+var turnPlayer = 0;
+var activeGame = true;
 
 
 const cards = []; //master list of cards with odds of being the murderer
@@ -82,6 +87,8 @@ const cardsLength = 21; //all of the cards in the game
 const activeCards = 18;
 
 var totalCombinations = 0;
+
+var gameDiv;
 
 for (var i = 0; i < cardsLength; i++) {
     cards[i] = new Card(i);
@@ -112,14 +119,20 @@ function setupGame() {
         const up = document.createElement("button");
         up.innerHTML = "/\\";
         up.setAttribute("onclick", "adjustCardCount(" + i + ", 1)");
-        const disp = document.createElement("span");
-        disp.innerHTML = " " + players[i].handSize + " ";
-        disp.id = "playerCardCount" + i;        
-
+        const countDisp = document.createElement("span");
+        countDisp.innerHTML = " " + players[i].handSize + " ";
+        countDisp.id = "playerCardCount" + i;        
+        const startTurn = document.createElement("button");
+        startTurn.innerHTML = "Starts";
+        startTurn.setAttribute("onclick", "adjustTurn(" + i + ")");
+        const turnDisp = document.createElement("span");
+        turnDisp.id = "playerTurn" + i;
 
         setupDiv.appendChild(down);
-        setupDiv.appendChild(disp);
+        setupDiv.appendChild(countDisp);
         setupDiv.appendChild(up);
+        setupDiv.appendChild(startTurn);
+        setupDiv.appendChild(turnDisp);
 
         setupDiv.appendChild(document.createElement("br"));
         setupDiv.appendChild(document.createElement("br"));
@@ -138,7 +151,11 @@ function adjustCardCount(i, n) {
     players[i].handSize += n;
     players[i].oddHandSize += n;
     document.getElementById("playerCardCount" + i).innerHTML = " " + players[i].handSize + " ";
-
+}
+function adjustTurn(i) {
+    document.getElementById("playerTurn" + turn).innerHTML = "";
+    turn = i;
+    document.getElementById("playerTurn" + turn).innerHTML = "This player starts";
 }
 function selectAsOwn(index) {
     var removed = false;
@@ -178,31 +195,41 @@ function selectAsOwn(index) {
 
 //---------------main functionality----------------------------
 function startGame() {
+    //update display
+    document.getElementById("setupDiv").style.display = "none";
+
+    gameDiv = document.getElementById("gameDiv");
+    gameDiv.style.display = "block";
+
+
     //make a card possible to be anywhere, unless it is a player's card
     cards.forEach(card => {
-        card.possible[0] = false;
+        card.possible[1] = false;
         for (var i = 0; i < players[0].handSize; i++) {
             if (players[0].hand[i].index == card.index) {
-                card.possible[0] = true;
+                card.possible[1] = true;
             }
         }
-        if (!card.possible[0]) {
+        if (!card.possible[1]) {
+            card.possible[0] = true;
             for (var i = 1; i < playerCount; i++) {
-                card.possible[i] = true;
+                card.possible[i+1] = true;
             }
         } else {
+            card.possible[0] = false;
             for (var i = 1; i < playerCount; i++) {
-                card.possible[i] = false;
+                card.possible[i+1] = false;
             }
         }
     });
 
+    //cards[4].possible[2] = false;
 
-    //need to fix possible indicies to match odds and combos indicies
-    cards[4].possible[2] = false;
+    //cards[11].possible[1] = false;
+    //cards[11].possible[2] = false;
 
-    cards[11].possible[1] = false;
-    cards[11].possible[2] = false;
+    takeTurn();
+    return;
 
     setOdds();
 
@@ -221,31 +248,154 @@ function startGame() {
 }
 
 
+function takeTurn(part=0) {
+    if (part == 0) { //start of turn
+        if (turn == 0) { //player 0's turn
+            
+        } else { //other player's turn
+            turnSelection = [];
+            turnPlayer = turn;
+            selectCard(0);
+        }
+    }
+    if (part == 1) { //after selections have been made
+
+        gameDiv.innerHTML = "";
+        
+        //add redo button
+        const redo = document.createElement("button");
+        redo.setAttribute("onclick", "takeTurn()");
+        redo.innerHTML = "Restart turn";
+
+        gameDiv.appendChild(redo);
+        gameDiv.appendChild(document.createElement("br"));
+
+        //increment sus player
+        turnPlayer++;
+        turnPlayer %= playerCount;
+
+        if (turnPlayer == turn) { //looped all around
+            takeTurn(2);
+            return;
+        }
+
+        const dispInfo = document.createElement("div");
+        dispInfo.innerHTML = "Does player " + turnPlayer + " have " + cards[turnSelection[0]].name + ", the " + cards[turnSelection[1]].name + ", or the " + cards[turnSelection[2]].name + "?";
+        const choiceY = document.createElement("button");
+        choiceY.innerHTML = "Yes";
+        choiceY.setAttribute("onclick", "playerShowCard(1)");
+        const choiceN = document.createElement("button");
+        choiceN.innerHTML = "No";
+        choiceN.setAttribute("onclick", "playerShowCard(0)");
+
+        gameDiv.appendChild(dispInfo);
+        gameDiv.appendChild(choiceY);
+        gameDiv.appendChild(choiceN);
+    }
+    if (part == 2) {
+        turn++;
+        turn %= playerCount;
+
+        gameDiv.innerHTML = "";
+
+        printOdds(true);
+
+        const nextTurn = document.createElement("button");
+        nextTurn.innerHTML = "Next turn";
+        nextTurn.setAttribute("onclick", "takeTurn()");
+
+        gameDiv.appendChild(nextTurn);
+    }
+}
+
+function selectCard(type, previousCard=-1) {
+    gameDiv.innerHTML = "Player " + turn + "'s turn:";
+    gameDiv.appendChild(document.createElement("br"));
+    if (previousCard != -1) {
+        turnSelection.push(previousCard);
+    }
+
+    if (type == 3) {
+        //commence next part
+        takeTurn(1);
+        return;
+    }
+
+    cards.forEach(card => {
+        if (card.type == type) {
+            const input = document.createElement("button");
+            input.setAttribute("onclick", "selectCard(" + (type+1) + ", "+ card.index + ")");
+            input.innerHTML = card.name;
+
+            gameDiv.appendChild(input);
+            gameDiv.appendChild(document.createElement("br"));
+        }
+    });
+}
+
+function playerShowCard(x) {
+    if (x == 1) { //player did show card
+        takeTurn(2);
+    } else { //player didn't show card
+        for (var i = 0; i < turnSelection.length; i++) {
+            cards[turnSelection[i]].possible[turnPlayer+1] = 0; //this is the meat
+        }
+        takeTurn(1);
+    }
+}
+
+
 //---------------set the odds when it is the player's turn to accurately reflect changes----------
 
 function setOdds() {
-    const handSizes = [1, 1, 1];
-    for (var i = 0; i < playerCount; i++) {
-        handSizes[i+3] = players[i].handSize;
-    }
 
     //reset odds
+    const handSizes = [1, 1, 1];
     totalCombinations = 0;
 
     cards.forEach(card => {
         for (var i = 0; i < playerCount+1; i++) {
             card.combos[i] = 0;
         }
+
+        //if a card is not yet confirmed
+        if (!card.confirmSpot) {
+            var possiblePlaces = 0;
+            var place = 0;
+            for (var i = 0; i < card.possible.length; i++) {
+                if (card.possible[i]) {
+                    possiblePlaces++;
+                    place = i;
+                }
+            }
+            if (possiblePlaces == 1) {
+                card.spot = place;
+                card.confirmSpot = true;
+                players[place-1].confirmedCards++;
+            }
+        }
+        if (card.confirmSpot && card.spot == 0) {
+            handSizes[card.type] = 0;
+        }
     });
 
+    
+    for (var i = 0; i < playerCount; i++) {
+        handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
+    }
     setOddsHelper(0, handSizes);
 
     //set the odds
     cards.forEach(card => {
         for (var i = 0; i < card.combos.length; i++) {
             card.odds[i] = card.combos[i]/totalCombinations;
+
+            //update possibilities if a certain spot is no longer possible
+            if (card.odds[i] == 0) {
+                card.possible[i] = 0;
+            }
         }
-    })
+    });
 }
 
 function setOddsHelper(index, hs) {
@@ -260,6 +410,14 @@ function setOddsHelper(index, hs) {
         return;
     }
 
+    //spot is already confirmed
+    if (cards[index].confirmSpot) {
+        var tc = totalCombinations;
+        setOddsHelper(index+1, hs);
+        cards[index].combos[cards[index].spot] += totalCombinations-tc;
+
+        return;
+    }
 
     if (hs[cards[index].type] == 1) { //can be suspect card
         hs[cards[index].type] = 0;
@@ -271,7 +429,7 @@ function setOddsHelper(index, hs) {
     }
 
     for (var i = 0; i < playerCount; i++) {
-        if (cards[index].possible[i] && hs[i+3] > 0) {
+        if (cards[index].possible[i+1] && hs[i+3] > 0) {
             hs[i+3] -= 1;
             //cards[index].spot = i+1;
             var tc = totalCombinations;
@@ -371,7 +529,7 @@ function expectedValue(inds) {
 
     if (co > 0) { //chance none of the players show you anything
         for (var i = 0; i < inds.length; i++) {
-            if (!cards[inds[i]].possible[0]) {
+            if (cards[inds[i]].possible[0]) {
                 ev += theroInfo(inds[i], -1)*co;
             }
         }
@@ -397,7 +555,7 @@ function highestExpectedValue(room) {
 }
 
 //-------------------------printing------------------
-function printOdds() {
+function printOdds(printPossibilities=false) {
     var totals = [];
     for (var i = 0; i < cardsLength; i++) {
         totals[i] = 0;
@@ -405,9 +563,18 @@ function printOdds() {
     const output = document.createElement("div");
     cards.forEach(card => {
         output.innerHTML += card.name + ": ";
-        for (var i = 0; i < card.odds.length; i++) {
-            output.innerHTML += (Math.round(card.odds[i]*1000)/1000) + ", ";
-            //totals[i] += card.odds[i];
+        if (printPossibilities) {
+            for (var i = 0; i < card.possible.length; i++) {
+                if (card.possible[i]) {
+                    output.innerHTML += "1, ";
+                } else {
+                    output.innerHTML += "0, ";
+                }
+            }
+        } else {
+            for (var i = 0; i < card.odds.length; i++) {
+                output.innerHTML += (Math.round(card.odds[i]*1000)/1000) + ", ";
+            }
         }
         output.innerHTML += "<br>";
     });
@@ -417,8 +584,10 @@ function printOdds() {
         output.innerHTML += totals[i] + ", ";
     }
     */
-    document.getElementById("setupDiv").appendChild(output);
+    gameDiv.appendChild(output);
 }
+
+
 
 </script>
 </head>
@@ -433,6 +602,9 @@ function printOdds() {
 
 <div id="setupDiv" style="display: none">
     <div>You:</div>
+</div>
+
+<div id="gameDiv" style="display: none">
 </div>
 
 </body>
