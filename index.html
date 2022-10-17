@@ -78,6 +78,7 @@ var playerCount = 0;
 const players = []; //list of all of the players
 var turn = 0 //i player's turn
 var turnSelection = [];
+var roomSelection = [];
 var turnPlayer = 0;
 var activeGame = true;
 
@@ -109,6 +110,19 @@ function setupGame() {
 
     for (var i = 0; i < playerCount; i++) {
         players[i] = new Player(Math.floor(18 / playerCount));
+
+        if (i == 0) {
+            players[i].name = "Griffin";
+        }
+        if (i == 1) {
+            players[i].name = "Tasha";
+        }
+        if (i == 2) {
+            players[i].name = "Micky";
+        }
+        if (i == 3) {
+            players[i].name = "Richard";
+        }
 
         const input = document.createElement("input");
         input.id = "playerInput" + i;
@@ -251,11 +265,52 @@ function startGame() {
 function takeTurn(part=0) {
     if (part == 0) { //start of turn
         if (turn == 0) { //player 0's turn
-            
+
+            //need to calculate odds at this point (it will be slow)
+            setOdds();
+
+
+            gameDiv.innerHTML = "Choose possible rooms: <br>";
+
+            roomSelection = [];
+
+            cards.forEach(card => {
+                if (card.type == 2) {
+                    const input = document.createElement("button");
+                    input.setAttribute("onclick", "selectRoom(" + card.index + ")");
+                    input.innerHTML = card.name;
+
+                    const disp = document.createElement("span");
+                    disp.id = "selectedRoom" + card.index;
+
+                    gameDiv.appendChild(input);
+                    gameDiv.appendChild(disp);
+                    gameDiv.appendChild(document.createElement("br"));
+                }
+            });
+
+            const cont = document.createElement("button");
+            cont.setAttribute("onclick", "takeTurn(3)");
+            cont.innerHTML = "Continue";
+
+            gameDiv.appendChild(document.createElement("br"));
+            gameDiv.appendChild(cont);
+
         } else { //other player's turn
             turnSelection = [];
             turnPlayer = turn;
-            selectCard(0);
+
+            gameDiv.innerHTML = "Does " + players[turn].name + " guess? <br>";
+            const choiceY = document.createElement("button");
+            choiceY.innerHTML = "Yes";
+            choiceY.setAttribute("onclick", "selectCard(0)");
+            const choiceN = document.createElement("button");
+            choiceN.innerHTML = "No";
+            choiceN.setAttribute("onclick", "takeTurn(2)");
+
+
+            gameDiv.appendChild(choiceY);
+            gameDiv.appendChild(choiceN);
         }
     }
     if (part == 1) { //after selections have been made
@@ -280,7 +335,7 @@ function takeTurn(part=0) {
         }
 
         const dispInfo = document.createElement("div");
-        dispInfo.innerHTML = "Does player " + turnPlayer + " have " + cards[turnSelection[0]].name + ", the " + cards[turnSelection[1]].name + ", or the " + cards[turnSelection[2]].name + "?";
+        dispInfo.innerHTML = "Does player " + players[turnPlayer].name + " have " + cards[turnSelection[0]].name + ", the " + cards[turnSelection[1]].name + ", or the " + cards[turnSelection[2]].name + "?";
         const choiceY = document.createElement("button");
         choiceY.innerHTML = "Yes";
         choiceY.setAttribute("onclick", "playerShowCard(1)");
@@ -292,7 +347,7 @@ function takeTurn(part=0) {
         gameDiv.appendChild(choiceY);
         gameDiv.appendChild(choiceN);
     }
-    if (part == 2) {
+    if (part == 2) { //when a turn is over
         turn++;
         turn %= playerCount;
 
@@ -306,10 +361,35 @@ function takeTurn(part=0) {
 
         gameDiv.appendChild(nextTurn);
     }
+    if (part == 3) { //after a player has chosen the rooms that they can enter
+
+        if (roomSelection.length > 0) {
+            turnSelection = highestExpectedValue(roomSelection);
+            turnPlayer = 0;
+            takeTurn(1);
+        } else {
+            takeTurn(2);
+        }
+        /*
+        const cont = document.createElement("button");
+        cont.innerHTML = "Next turn";
+        cont.setAttribute("onclick", "takeTurn(1)");*/
+    }
+    if (part == 4) { //checking which card was shown to the player
+        gameDiv.innerHTML = "Which card was shown? <br>";
+
+        for (var i = 0; i < turnSelection.length; i++) {
+            const input = document.createElement("button");
+            input.setAttribute("onclick", "playerShowCard(1, " + cards[turnSelection[i]].index + ")");
+            input.innerHTML = cards[turnSelection[i]].name;
+
+            gameDiv.appendChild(input);
+        }
+    }
 }
 
 function selectCard(type, previousCard=-1) {
-    gameDiv.innerHTML = "Player " + turn + "'s turn:";
+    gameDiv.innerHTML = "Player " + players[turn].name + "'s turn:";
     gameDiv.appendChild(document.createElement("br"));
     if (previousCard != -1) {
         turnSelection.push(previousCard);
@@ -333,9 +413,21 @@ function selectCard(type, previousCard=-1) {
     });
 }
 
-function playerShowCard(x) {
-    if (x == 1) { //player did show card
+function playerShowCard(x, index=-1) {
+    if (index != -1) { //shown card index
+        for (var i = 0; i < cards[index].possible.length; i++) {
+            if (turnPlayer + 1 != i) {
+                cards[index].possible[i] = 0;
+            }
+        }
         takeTurn(2);
+    } else if (x == 1) { //player did show card
+
+        if (turn == 0) { //need to find which card was shown because it was shown to player
+            takeTurn(4);
+        } else {
+            takeTurn(2);
+        }
     } else { //player didn't show card
         for (var i = 0; i < turnSelection.length; i++) {
             cards[turnSelection[i]].possible[turnPlayer+1] = 0; //this is the meat
@@ -343,6 +435,24 @@ function playerShowCard(x) {
         takeTurn(1);
     }
 }
+
+function selectRoom(index) {
+    for (var i = 0; i < roomSelection.length; i++) {
+        if (index == roomSelection[i]) {
+            //toggle off
+            document.getElementById("selectedRoom"+index).innerHTML = "";
+
+            roomSelection.splice(i, 1);
+            return;
+        }
+    }
+
+    roomSelection.push(index);
+    document.getElementById("selectedRoom"+index).innerHTML = "Chosen!";
+}
+
+
+//====================ACTUAL MATH===========================
 
 
 //---------------set the odds when it is the player's turn to accurately reflect changes----------
@@ -371,7 +481,9 @@ function setOdds() {
             if (possiblePlaces == 1) {
                 card.spot = place;
                 card.confirmSpot = true;
-                players[place-1].confirmedCards++;
+                if (place > 0) {
+                    players[place-1].confirmedCards++;
+                }
             }
         }
         if (card.confirmSpot && card.spot == 0) {
@@ -383,6 +495,7 @@ function setOdds() {
     for (var i = 0; i < playerCount; i++) {
         handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
     }
+    console.log(handSizes);
     setOddsHelper(0, handSizes);
 
     //set the odds
@@ -451,7 +564,7 @@ function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
 }
 function theroInfo(index, player) {
     //info gained from player index "player" having card of index "index"
-
+    //change in info from not knowing that player has card
 
     if (player != -1) { //player have card
 
@@ -469,7 +582,6 @@ function theroInfo(index, player) {
                 }
             }
         });
-
         return changeOdds;
 
     } else {  //suspect card
@@ -537,20 +649,24 @@ function expectedValue(inds) {
     return ev;
 }
 
-function highestExpectedValue(room) {
+function highestExpectedValue(rooms) {
     var hev = 0;
     var hevc = [];
-    //loop through each person
-    for (var i = 0; i < 6; i++) {
-        //and weapon
-        for (var l = 6; l < 12; l++) {
-            var ev = expectedValue([i, l, room]);
-            if (ev > hev) {
-                hev = ev;
-                hevc = [i, l];
+    //loop through each room
+    for (var k = 0; k < rooms.length; k++) {
+        //loop through each person
+        for (var i = 0; i < 6; i++) {
+            //and weapon
+            for (var l = 6; l < 12; l++) {
+                var ev = expectedValue([i, l, rooms[k]]);
+                if (ev > hev) {
+                    hev = ev;
+                    hevc = [i, l, rooms[k]];
+                }
             }
         }
     }
+    console.log(hevc);
     return hevc;
 }
 
