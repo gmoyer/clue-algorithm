@@ -624,10 +624,14 @@ function expectedValue(inds) {
 
         //run through again and add to expected value
         for (var l = 0; l < inds.length; l++) {
+            var indMod = 1;
+            if (l == 2) { //higher gain with room. This i just came up with :)
+                indMod = 2;
+            }
             var odd = cards[inds[l]].odds[i+1];
             //expected value is the info gained times the probability of gaining that info
             //probability is the share of the odds (probability that the player will chose to show that card) times the probability that the player has a card to show
-            ev += theroInfo(inds[l], i) * (odd/total) * odds;
+            ev += theroInfo(inds[l], i) * (odd/total) * odds * indMod;
         }
     }
 
