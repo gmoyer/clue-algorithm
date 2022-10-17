@@ -404,7 +404,7 @@ function selectCard(type, previousCard=-1) {
     cards.forEach(card => {
         if (card.type == type) {
             const input = document.createElement("button");
-            input.setAttribute("onclick", "selectCard(" + (type+1) + ", "+ card.index + ")");
+            input.setAttribute("onclick", "selectCard(" + (type+1) + ", " + card.index + ")");
             input.innerHTML = card.name;
 
             gameDiv.appendChild(input);
@@ -562,48 +562,40 @@ function oddMath(a, o, n) {//a = card to adjust, o = old odd, n = new odd
     }
     return ((1-n)*a)/(1-o);
 }
-function theroInfo(index, player) {
-    //info gained from player index "player" having card of index "index"
-    //change in info from not knowing that player has card
-
-    if (player != -1) { //player have card
-
-        var changeOdds = 0;
-
-        var removedOdd = cards[index].odds[0];
-
-        cards.forEach(card => {
-            if (card.type == cards[index].type) {
-                if (card.index == index) {
-                    changeOdds += Math.pow(removedOdd, 2);
-                } else {
-                    var newOdd = oddMath(card.odds[0], removedOdd, 0);
-                    changeOdds += Math.pow(newOdd-card.odds[0], 2);
-                }
-            }
-        });
-        return changeOdds;
-
-    } else {  //suspect card
-
-        var changeOdds = 0;
-
-        //amount added to get the odd to 1
-        var addedOdd = 1-cards[index].odds[0];
-
-        cards.forEach(card => {
-            if (card.type == cards[index].type) {
-                if (card.index == index) {
-                    changeOdds += Math.pow(addedOdd, 2);
-                } else {
-                    //since odd is changed to 0, the change is itself (x-x=0)
-                    changeOdds += Math.pow(card.odds[0], 2);
-                }
-            }
-        });
-
-        return changeOdds;
+function entropyMath(odds, n) {
+    if (odds == 0) {
+        return 0;
     }
+    return -odds * (Math.log(odds)/Math.log(n));
+}
+function theroInfo(index, player) {
+    //change in entropy from not knowing that the player has the card
+
+
+    var originalEntropy = 0;
+
+    var oldOdd = cards[index].odds[0];
+    var newOdd;
+    if (player != -1) { //player have card
+        newOdd = 0;
+    } else { //confirmed suspect card
+        newOdd = 1;
+    }
+
+    var changeEntropy = 0;
+    cards.forEach(card => {
+        if (card.type == cards[index].type) {
+            //calculate original entropy
+            originalEntropy += entropyMath(card.odds[0], card.count);
+            if (card.index != index) { 
+                //calculate change entropy. Change entropy for card at index will always be 0
+                var changeOdd = oddMath(card.odds[0], oldOdd, newOdd);
+                changeEntropy += entropyMath(changeOdd, card.count);
+            }
+        }
+    });
+
+    return originalEntropy-changeEntropy; //positive when entropy goes down, which is good
 }
 //---------------finding expected value--------------
 
