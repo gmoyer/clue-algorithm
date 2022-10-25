@@ -68,7 +68,9 @@ class Player {
 class TriCombo {
     constructor(p) {
         this.cards = [];
+        this.possibleLeft;
         this.player = p;
+        this.counted = -1;
     }
 }
 
@@ -99,10 +101,9 @@ const activeCards = 18;
 var totalCombinations = 0;
 
 var triCombos = [];
-var triComboTotal = 0;
 var currentComboCount = 0;
 
-
+var badCount = 0;
 var gameDiv;
 
 for (var i = 0; i < cardsLength; i++) {
@@ -282,9 +283,9 @@ function takeTurn(part=0) {
 
             //need to calculate odds at this point (it will be slow)
             setOdds();
+            printOdds();
 
-
-            gameDiv.innerHTML = "Choose possible rooms: <br>";
+            gameDiv.innerHTML += "<br>Choose possible rooms: <br>";
 
             roomSelection = [];
 
@@ -442,6 +443,12 @@ function playerShowCard(x, index=-1) {
         if (turn == 0) { //need to find which card was shown because it was shown to player
             takeTurn(4);
         } else {
+            //add to tricombos
+            if (turnPlayer != 0) {
+                var tc = new TriCombo(turnPlayer);
+                tc.cards = [...turnSelection];
+                triCombos.push(tc);
+            }
             takeTurn(2);
         }
     } else { //player didn't show card
@@ -479,6 +486,10 @@ function setOdds() {
     const handSizes = [1, 1, 1];
     totalCombinations = 0;
 
+    currentComboCount = 0;
+
+    badCount = 0;
+
     cards.forEach(card => {
         for (var i = 0; i < playerCount+1; i++) {
             card.combos[i] = 0;
@@ -509,13 +520,26 @@ function setOdds() {
 
         //set up tricombos
         card.involvedTriCombos = [];
+
+        //go through each non-player
         for (var i = 1; i < playerCount; i++) {
-            for (var l = 0; l < triCombos; l++) {
-                if (triCombos[l].cards[card.type] == card.index)
+            card.involvedTriCombos[i-1] = [];
+            //and each triCombo
+            for (var l = 0; l < triCombos.length; l++) {
+                //if the tri combo includes the card and is the current player
+                if (triCombos[l].cards[card.type] == card.index && triCombos[l].player == i) {
+                    //push to the list of combos that include the card and are not the current player
+                    card.involvedTriCombos[i-1].push(l);
+                }
             }
         }
+        console.log(card.name);
+        console.log(card.involvedTriCombos);
     });
 
+    for (var i = 0; i < triCombos.length; i++) {
+        triCombos[i].counted = -1;
+    }
     
     for (var i = 0; i < playerCount; i++) {
         handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
@@ -535,17 +559,31 @@ function setOdds() {
             }
         }
     });
+
+    console.log(totalCombinations);
+    console.log(badCount);
 }
 
 function setOddsHelper(index, hs) {
     //end case, went through all the cards
     if (index == cardsLength) {
-        if (currentComboCount == triComboTotal) {
+        if (currentComboCount == triCombos.length) {
             totalCombinations++;
         }
+        
+        
+        //test
         /*
-        cards.forEach(card => {
-            card.odds[card.spot]++;
+        triCombos.forEach(triCombo => {
+            var unsatisfied = true;
+            for (var i = 0; i < triCombo.cards.length; i++) {
+                if (cards[triCombo.cards[i]].spot == triCombo.player+1) {
+                    unsatisfied = false;
+                }
+            }
+            if (unsatisfied) {
+                badCount++;
+            }
         });
         */
         return;
@@ -553,6 +591,7 @@ function setOddsHelper(index, hs) {
 
     //spot is already confirmed
     if (cards[index].confirmSpot) {
+
         var tc = totalCombinations;
         setOddsHelper(index+1, hs);
         cards[index].combos[cards[index].spot] += totalCombinations-tc;
@@ -562,21 +601,37 @@ function setOddsHelper(index, hs) {
 
     if (hs[cards[index].type] == 1) { //can be suspect card
         hs[cards[index].type] = 0;
-        //cards[index].spot = 0;
+        cards[index].spot = 0;
         var tc = totalCombinations;
         setOddsHelper(index+1, hs);
         cards[index].combos[0] += totalCombinations-tc;
         hs[cards[index].type] = 1;
     }
 
-    for (var i = 0; i < playerCount; i++) {
+    for (var i = 1; i < playerCount; i++) {
         if (cards[index].possible[i+1] && hs[i+3] > 0) {
+
+            //check for combos
+            for (var l = 0; l < cards[index].involvedTriCombos[i-1].length; l++) {
+                if (triCombos[cards[index].involvedTriCombos[i-1][l]].counted == -1) {
+                    currentComboCount++;
+                    triCombos[cards[index].involvedTriCombos[i-1][l]].counted = index;
+                }
+            }
+
             hs[i+3] -= 1;
-            //cards[index].spot = i+1;
+            cards[index].spot = i+1;
             var tc = totalCombinations;
             setOddsHelper(index+1, hs);
             cards[index].combos[i+1] += totalCombinations-tc;
             hs[i+3] += 1;
+
+            for (var l = 0; l < cards[index].involvedTriCombos[i-1].length; l++) {
+                if (triCombos[cards[index].involvedTriCombos[i-1][l]].counted == index) {
+                    currentComboCount--;
+                    triCombos[cards[index].involvedTriCombos[i-1][l]].counted = -1;
+                }
+            }
         }
     }
 }
