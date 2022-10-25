@@ -533,8 +533,8 @@ function setOdds() {
                 }
             }
         }
-        console.log(card.name);
-        console.log(card.involvedTriCombos);
+        //console.log(card.name);
+        //console.log(card.involvedTriCombos);
     });
 
     for (var i = 0; i < triCombos.length; i++) {
@@ -651,7 +651,7 @@ function entropyMath(odds, n) {
     }
     return -odds * (Math.log(odds)/Math.log(n));
 }
-function theroInfo(index, player) {
+function theroInfo(index, player, confirm=true) {
     //change in entropy from not knowing that the player has the card
 
 
@@ -659,10 +659,14 @@ function theroInfo(index, player) {
 
     var oldOdd = cards[index].odds[0];
     var newOdd;
-    if (player != -1) { //player have card
-        newOdd = 0;
-    } else { //confirmed suspect card
-        newOdd = 1;
+    if (confirm) { //from a player having a card
+        if (player != -1) { //player have card
+            newOdd = 0;
+        } else { //confirmed suspect card
+            newOdd = 1;
+        }
+    } else { //from a player not showing a card
+        newOdd = oddMath(oldOdd, cards[index].odds[player+1], 0);
     }
 
     var changeEntropy = 0;
@@ -677,7 +681,6 @@ function theroInfo(index, player) {
             }
         }
     });
-
     return originalEntropy-changeEntropy; //positive when entropy goes down, which is good
 }
 //---------------finding expected value--------------
@@ -687,23 +690,36 @@ function expectedValue(inds) {
 
     var ev = 0; //expected value
     var co = 1; //current odds
+
+    var removedOdds = [];
     //loop through each player
     for (var i = 1; i < playerCount; i++) {
 
         //find the odds that the player actually has any of the three using a flip flop (find odds player doesn't have card and then inverse)
         var odds = 1;
         var total = 0;
+        var newRemovedOdds = [];
         for (var l = 0; l < inds.length; l++) {
+
+            //account for odds removed from last rounds (if a player passes, the odds of them having a card is zero)
             var odd = cards[inds[l]].odds[i+1];
+            for (var j = 0; j < removedOdds.length; j++) {
+                odd = oddMath(odd, removedOdds[j][l], 0);
+            }
+            newRemovedOdds.push(odd);
             odds *= 1-odd;
             total += odd;
         }
+        removedOdds.push(newRemovedOdds);
+        var passOdds = odds; //odds that the player would pass
+        var ro = odds; //the odds taken away from the total current odds
         odds = 1-odds;
 
         //multiply it by the odds left over from other players
         odds *= co;
-        //remove the odds from the leftover odds
-        co -= odds;
+        passOdds *= co;
+        //remove the odds that a player shows a card from the leftover odds
+        co *= ro;
 
         //run through again and add to expected value
         for (var l = 0; l < inds.length; l++) {
@@ -715,6 +731,9 @@ function expectedValue(inds) {
             //expected value is the info gained times the probability of gaining that info
             //probability is the share of the odds (probability that the player will chose to show that card) times the probability that the player has a card to show
             ev += theroInfo(inds[l], i) * (odd/total) * odds * indMod;
+
+            //when passing, we know all three are zero
+            ev += theroInfo(inds[l], i, false) * passOdds * indMod;
         }
     }
 
@@ -725,6 +744,11 @@ function expectedValue(inds) {
             }
         }
     }
+    var output = "";
+    for (var i = 0; i < inds.length; i++) {
+        output += cards[inds[i]].name + ", ";
+    }
+    console.log(output + ev);
     return ev;
 }
 
@@ -745,7 +769,6 @@ function highestExpectedValue(rooms) {
             }
         }
     }
-    console.log(hevc);
     return hevc;
 }
 
