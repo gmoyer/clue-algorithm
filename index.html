@@ -50,6 +50,8 @@ class Card {
         this.combos = []; //combinations of it being somewhere. See above for placement
         this.odds = []; //oods of it being somewhere. See above
         this.theroCombo = 0; //theoretical combinations of being the suspect card when a value is changed
+
+        this.involvedTriPairs = [];
     }
 }
 
@@ -88,6 +90,11 @@ const cardsLength = 21; //all of the cards in the game
 const activeCards = 18;
 
 var totalCombinations = 0;
+
+
+var triPairs = []; //pairs of three that need to be checked off in order for odds to be valid
+var triPairCount = 0;
+var currTriPair = 0;
 
 var gameDiv;
 
@@ -462,6 +469,7 @@ function setOdds() {
     //reset odds
     const handSizes = [1, 1, 1];
     totalCombinations = 0;
+    currTriPair = 0;
 
     cards.forEach(card => {
         for (var i = 0; i < playerCount+1; i++) {
@@ -626,7 +634,7 @@ function expectedValue(inds) {
         for (var l = 0; l < inds.length; l++) {
             var indMod = 1;
             if (l == 2) { //higher gain with room. This i just came up with :)
-                indMod = 2;
+                indMod = 1; // originally 2
             }
             var odd = cards[inds[l]].odds[i+1];
             //expected value is the info gained times the probability of gaining that info
