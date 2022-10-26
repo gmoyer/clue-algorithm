@@ -558,6 +558,10 @@ function setOdds() {
                 card.possible[i] = 0;
             }
         }
+
+        if (card.confirmSpot) {
+            card.odds[card.spot] = 1;
+        }
     });
 
     console.log(totalCombinations);
@@ -592,16 +596,15 @@ function setOddsHelper(index, hs) {
     //spot is already confirmed
     if (cards[index].confirmSpot) {
 
-        var tc = totalCombinations;
+        //var tc = totalCombinations;
         setOddsHelper(index+1, hs);
-        cards[index].combos[cards[index].spot] += totalCombinations-tc;
+        //cards[index].combos[cards[index].spot] += totalCombinations-tc;
 
         return;
     }
 
     if (hs[cards[index].type] == 1) { //can be suspect card
-        hs[cards[index].type] = 0;
-        cards[index].spot = 0;
+        hs[cards[index].type] = 0
         var tc = totalCombinations;
         setOddsHelper(index+1, hs);
         cards[index].combos[0] += totalCombinations-tc;
@@ -620,7 +623,6 @@ function setOddsHelper(index, hs) {
             }
 
             hs[i+3] -= 1;
-            cards[index].spot = i+1;
             var tc = totalCombinations;
             setOddsHelper(index+1, hs);
             cards[index].combos[i+1] += totalCombinations-tc;
