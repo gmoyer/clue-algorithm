@@ -52,6 +52,7 @@ class Card {
         this.theroCombo = 0; //theoretical combinations of being the suspect card when a value is changed
 
         this.involvedTriCombos = []; //array of arrays including all the tri combos of not the player's index (index 0 = player 1)
+        this.conflicts = [];
     }
 }
 
@@ -493,6 +494,7 @@ function setOdds() {
     cards.forEach(card => {
         for (var i = 0; i < playerCount+1; i++) {
             card.combos[i] = 0;
+            card.conflicts[i] = [];
         }
 
         //if a card is not yet confirmed
@@ -528,7 +530,7 @@ function setOdds() {
             for (var l = 0; l < triCombos.length; l++) {
                 //if the tri combo includes the card and is the current player
                 if (triCombos[l].cards[card.type] == card.index && triCombos[l].player == i) {
-                    //push to the list of combos that include the card and are not the current player
+                    //push to the list of combos that include the card and is the current player
                     card.involvedTriCombos[i-1].push(l);
                 }
             }
@@ -545,8 +547,62 @@ function setOdds() {
         handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
     }
 
-    console.log(handSizes);
-    setOddsHelper(0, handSizes);
+    //console.log(handSizes);
+    //setOddsHelper(0, handSizes);
+
+    cards.forEach(card => {
+        for (var i = 0; i < card.possible.length; i++) {
+            var currentPlayer = i-1;
+            cards.forEach(card2 => {
+                if (card2 != card && card2.possible[i]) { //card 2 conflicts with card 1, they can both be in currentPlayer's hand
+                    card.conflicts[i].push(card2);
+                }
+            });
+        }
+    });
+
+    var resolvedConflict = true;
+
+    while (resolvedConflict) {
+        resolvedConflict = false;
+        cards.forEach(card => {
+            for (var i = 0; i < card.conflicts.length; i++) {
+                if ((i == 0 && card.conflicts[i].length < handSizes[card.type]) || (i > 0 && card.conflicts[i].length < handSizes[i+2])) {
+                    //same as code from earlier
+                    card.spot = i;
+                    card.confirmSpot = true;
+                    if (i > 0) {
+                        players[i-1].confirmedCards++;
+                    } else {
+                        handSizes[card.type] = 0;
+                    }
+
+                    //resolve conflict and remove card from conflicts for other players
+                    resolvedConflict = true;
+                    cards.forEach(card2 => {
+                        if (card2 != card) {
+                            for (var l = 0; l < card2.conflicts.length; l++) {
+                                if (l != i) { //it still exists a conflict for where it is confirmed
+                                    for (var j = 0; j < card2.conflicts[l].length; j++) {
+                                        if (card2.conflicts[l][j] == card) {
+                                            card2.conflicts[l].splice(j, 1);
+                                            j--;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        for (var i = 0; i < playerCount; i++) {
+            handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
+        }
+    }
+
+    }
 
     //set the odds
     cards.forEach(card => {
