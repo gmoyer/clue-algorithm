@@ -516,7 +516,7 @@ function setOdds() {
             }
         }
         if (card.confirmSpot && card.spot == 0) {
-            handSizes[card.type] = 0;
+            //handSizes[card.type] = 0;
         }
 
 
@@ -544,7 +544,7 @@ function setOdds() {
     }
     
     for (var i = 0; i < playerCount; i++) {
-        handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
+        handSizes[i+3] = players[i].handSize;//-players[i].confirmedCards;
     }
 
     //console.log(handSizes);
@@ -596,12 +596,11 @@ function setOdds() {
                 }
             }
         });
-
+        /*
         for (var i = 0; i < playerCount; i++) {
             handSizes[i+3] = players[i].handSize-players[i].confirmedCards;
         }
-    }
-
+        */
     }
 
     //set the odds
