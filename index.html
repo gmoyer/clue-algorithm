@@ -225,6 +225,12 @@ function selectAsOwn(index) {
 
 //---------------main functionality----------------------------
 function startGame() {
+    //update player names
+
+    for (var i = 0; i < playerCount; i++) {
+        player[i].name = document.getElementById("playerInput" + i).value;
+    }
+
     //update display
     document.getElementById("setupDiv").style.display = "none";
 
